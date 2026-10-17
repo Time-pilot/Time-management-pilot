@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>TimeWise</title>
+<style>
+  :root {
+    --bg: #f4f6fb;
+    --card: #ffffff;
+    --text: #172033;
+    --muted: #667085;
+    --accent: #4f6df5;
+    --border: #e4e7ef;
+  }
+  body.dark {
+    --bg: #0f1420;
+    --card: #171e2e;
+    --text: #eef1f8;
+    --muted: #9aa4b8;
+    --accent: #7c8dff;
+    --border: #26304a;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 80px;
+  }
+  header {
+    padding: 20px 16px 10px;
+  }
+  header h1 { margin: 0; font-size: 24px; }
+  header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  main { padding: 0 16px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .grow { flex: 1; }
+  input, select, textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 15px;
+  }
+  button {
+    border: 0;
+    border-radius: 12px;
+    padding: 12px 16px;
+    background: var(--accent);
+    color: white;
+    font-weight: 700;
+    font-size: 15px;
+  }
+  .secondary {
+    background: transparent;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+  }
+  .task {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    border-radius: 14px;
+    border: 1px solid var(--border);
+    margin-bottom: 8px;
+  }
+  .done { opacity: .55; text-decoration: line-through; }
+  .xp { font-size: 32px; font-weight: 800; color: var(--accent); }
+  nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    padding: 8px 4px calc(8px + env(safe-area-inset-bottom));
+  }
+  nav button {
+    flex: 1;
+    background: none;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+  nav button.active { color: var(--accent); }
+  .page { display: none; }
+  .page.active { display: block; }
+  #focusOverlay {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    color: white;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 24px;
+    z-index: 50;
+  }
+  #focusOverlay.active { display: flex; }
+  #timer { font-size: 72px; font-weight: 800; margin: 20px 0; }
+  .small { font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>TimeWise</h1>
+  <p id="greeting">Plan your day. Focus. Level up.</p>
+</header>
+
+<main>
+  <section id="today" class="page active">
+    <div class="card">
+      <div class="row">
+        <div class="grow">
+          <div class="small">Your XP</div>
+          <div class="xp" id="xpDisplay">0 XP</div>
+          <div class="small" id="levelDisplay">Level 1</div>
+        </div>
+        <div>
+          <div class="small">Streak</div>
+          <div class="xp" id="streakDisplay">0🔥</div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Today’s tasks</h3>
+      <div id="todayTasks"></div>
+    </div>
+    <div class="card">
+      <h3>Now</h3>
+      <div id="currentBlock" class="small">No schedule block right now.</div>
+    </div>
+  </section>
+
+  <section id="tasks" class="page">
+    <div class="card">
+      <h3>Add task</h3>
+      <input id="taskTitle" placeholder="Task name, e.g. Math homework">
+      <br><br>
+      <div class="row">
+        <select id="taskCategory" class="grow">
+          <option>Schoolwork</option>
+          <option>Hobby</option>
+          <option>Chores</option>
+          <option>Exercise</option>
+          <option>Other</option>
+        </select>
+        <input id="taskMinutes" type="number" min="5" placeholder="Minutes" style="max-width:110px">
+      </div>
+      <br>
+      <input id="taskDue" type="date">
+      <br><br>
+      <button onclick="addTask()">Add task</button>
+    </div>
+    <div class="card">
+      <h3>All tasks</h3>
+      <div id="taskList"></div>
+    </div>
+  </section>
+
+  <section id="schedule" class="page">
+    <div class="card">
+      <h3>Add schedule block</h3>
+      <select id="scheduleDay">
+        <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
+        <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
+      </select>
+      <br><br>
+      <div class="row">
+        <input id="blockStart" type="time" class="grow">
+        <input id="blockEnd" type="time" class="grow">
+      </div>
+      <br>
+      <input id="blockLabel" placeholder="e.g. School, free time, extracurricular">
+      <br><br>
+      <button onclick="addBlock()">Add block</button>
+    </div>
+    <div class="card">
+      <h3>Weekly schedule</h3>
+      <div id="scheduleList"></div>
+    </div>
+  </section>
+
+  <section id="focus" class="page">
+    <div class="card">
+      <h3>Focus Mode</h3>
+      <p class="small">Choose a task and focus without opening social media.</p>
+      <select id="focusTask"></select>
+      <br><br>
+      <select id="focusMinutes">
+        <option value="15">15 minutes</option>
+        <option value="25" selected>25 minutes</option>
+        <option value="45">45 minutes</option>
+      </select>
+      <br><br>
+      <button onclick="startFocus()">Start Focus</button>
+    </div>
+    <div class="card">
+      <h3>Demo leaderboard</h3>
+      <div id="leaderboard" class="small"></div>
+    </div>
+  </section>
+
+  <section id="more" class="page">
+    <div class="card">
+      <h3>Profile</h3>
+      <input id="nickname" placeholder="Display name">
+      <br><br>
+      <select id="nameMode">
+        <option value="nickname">Show nickname</option>
+        <option value="anon">Anonymous</option>
+        <option value="real">Show real name</option>
+      </select>
+      <br><br>
+      <input id="realName" placeholder="Real name, only if you choose to show it">
+      <br><br>
+      <button onclick="saveProfile()">Save profile</button>
+    </div>
+    <div class="card">
+      <h3>Appearance</h3>
+      <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
+    </div>
+    <div class="card">
+      <h3>Privacy</h3>
+      <p class="small">
+        This starter version saves data only in your browser. Do not enter sensitive
+        personal information. For a real school deployment, use minimal data, get
+        appropriate parent/school consent for younger students, and let users delete
+        their account and data.
+      </p>
+    </div>
+  </section>
+</main>
+
+<div id="focusOverlay">
+  <div class="small">FOCUS MODE</div>
+  <div id="focusTaskName"></div>
+  <div id="timer">25:00</div>
+  <button class="secondary" onclick="confirmExit()">Leave Focus Mode</button>
+</div>
+
+<nav>
+  <button data-page="today" class="active" onclick="showPage('today')">Today</button>
+  <button data-page="tasks" onclick="showPage('tasks')">Tasks</button>
+  <button data-page="schedule" onclick="showPage('schedule')">Schedule</button>
+  <button data-page="focus" onclick="showPage('focus')">Focus</button>
+  <button data-page="more" onclick="showPage('more')">More</button>
+</nav>
+
+<script>
+let state = JSON.parse(localStorage.getItem("timewise") || "null") || {
+  xp: 0, streak: 0, tasks: [], schedule: [],
+  profile: { nickname: "", nameMode: "nickname", realName: "" }
+};
+
+function save() {
+  localStorage.setItem("timewise", JSON.stringify(state));
+  render();
+}
+
+function showPage(name) {
+  document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
+  document.getElementById(name).classList.add("active");
+  document.querySelectorAll("nav button").forEach(b =>
+    b.classList.toggle("active", b.dataset.page === name));
+}
+
+function addTask() {
+  const title = document.getElementById("taskTitle").value.trim();
+  if (!title) return alert("Please enter a task name.");
+  state.tasks.push({
+    id: Date.now(),
+    title,
+    category: document.getElementById("taskCategory").value,
+    minutes: Number(document.getElementById("taskMinutes").value || 25),
+    due: document.getElementById("taskDue").value,
+    done: false
+  });
+  document.getElementById("taskTitle").value = "";
+  save();
+}
+
+function completeTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task || task.done) return;
+  task.done = true;
+  state.xp += task.minutes >= 45 ? 25 : 10;
+  save();
+}
+
+function addBlock() {
+  const label = document.getElementById("blockLabel").value.trim();
+  if (!label) return alert("Please enter a block name.");
+  state.schedule.push({
+    day: document.getElementById("scheduleDay").value,
+    start: document.getElementById("blockStart").value,
+    end: document.getElementById("blockEnd").value,
+    label
+  });
+  save();
+}
+
+function startFocus() {
+  const taskId = Number(document.getElementById("focusTask").value);
+  const task = state.tasks.find(t => t.id === taskId);
+  const minutes = Number(document.getElementById("focusMinutes").value);
+  document.getElementById("focusTaskName").textContent =
+    task ? task.title : "Focus session";
+  document.getElementById("focusOverlay").classList.add("active");
+  let remaining = minutes * 60;
+  clearInterval(window.focusInterval);
+  window.focusInterval = setInterval(() => {
+    remaining--;
+    const m = String(Math.floor(remaining / 60)).padStart(2, "0");
+    const s = String(remaining % 60).padStart(2, "0");
+    document.getElementById("timer").textContent = `${m}:${s}`;
+    if (remaining <= 0) {
+      clearInterval(window.focusInterval);
+      state.xp += 15;
+      if (task) task.done = true;
+      document.getElementById("focusOverlay").classList.remove("active");
+      alert("Focus complete! +15 XP");
+      save();
+    }
+  }, 1000);
+}
+
+function confirmExit() {
+  if (confirm("Are you sure you want to leave Focus Mode? Your progress will not be counted.")) {
+    clearInterval(window.focusInterval);
+    document.getElementById("focusOverlay").classList.remove("active");
+  }
+}
+
+function toggleDark() {
+  document.body.classList.toggle("dark");
+}
+
+function saveProfile() {
+  state.profile = {
+    nickname: document.getElementById("nickname").value.trim(),
+    nameMode: document.getElementById("nameMode").value,
+    realName: document.getElementById("realName").value.trim()
+  };
+  save();
+}
+
+function displayName() {
+  const p = state.profile;
+  if (p.nameMode === "anon") return "Anonymous";
+  if (p.nameMode === "real") return p.realName || "Student";
+  return p.nickname || "Student";
+}
+
+function render() {
+  document.getElementById("xpDisplay").textContent = state.xp + " XP";
+  document.getElementById("levelDisplay").textContent =
+    "Level " + (Math.floor(state.xp / 100) + 1);
+  document.getElementById("streakDisplay").textContent = state.streak + "🔥";
+
+  const today = new Date().toISOString().slice(0, 10);
+  const todayTasks = state.tasks.filter(t => !t.due || t.due === today);
+  document.getElementById("todayTasks").innerHTML =
+    todayTasks.map(t => taskHTML(t)).join("") || "<div class='small'>No tasks for today.</div>";
+
+  document.getElementById("taskList").innerHTML =
+    state.tasks.map(t => taskHTML(t)).join("") || "<div class='small'>No tasks yet.</div>";
+
+  document.getElementById("scheduleList").innerHTML = state.schedule
+    .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start))
+    .map(b => `<div class="task"><div><b>${b.day}</b><br>${b.start}–${b.end}</div><div>${b.label}</div></div>`)
+    .join("") || "<div class='small'>No schedule blocks yet.</div>";
+
+  document.getElementById("focusTask").innerHTML =
+    `<option value="">No selected task</option>` +
+    state.tasks.filter(t => !t.done)
+      .map(t => `<option value="${t.id}">${t.title}</option>`).join("");
+
+  const demo = [
+    { name: "Aisyah", xp: 320 },
+    { name: "Rizky", xp: 275 },
+    { name: displayName(), xp: state.xp }
+  ].sort((a, b) => b.xp - a.xp);
+
+  document.getElementById("leaderboard").innerHTML = demo
+    .map((u, i) => `${i + 1}. ${u.name} — ${u.xp} XP`)
+    .join("<br>");
+
+  document.getElementById("nickname").value = state.profile.nickname;
+  document.getElementById("nameMode").value = state.profile.nameMode;
+  document.getElementById("realName").value = state.profile.realName;
+
+  const now = new Date();
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
+  const time = now.toTimeString().slice(0, 5);
+  const block = state.schedule.find(b =>
+    b.day === dayName && b.start <= time && time <= b.end);
+  document.getElementById("currentBlock").textContent =
+    block ? `${block.label} — ${block.start} to ${block.end}` :
+    "No schedule block right now.";
+}
+
+function taskHTML(t) {
+  return `<div class="task ${t.done ? "done" : ""}">
+    <div><b>${t.title}</b><br>
+    <span class="small">${t.category} • ${t.minutes} min • ${t.due || "No due date"}</span></div>
+    ${t.done ? "<span>✅</span>" : `<button onclick="completeTask(${t.id})">Done</button>`}
+  </div>`;
+}
+
+render();
+</script>
+</body>
+</html>
