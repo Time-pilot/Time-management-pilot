@@ -479,7 +479,13 @@ function showBreak(minutes = 5) {
 }
 
 function confirmExit() {
-  if (!confirm("Are you sure you want to leave Focus Mode? Your progress will not be counted.")) return;
+  const isBreak = document.getElementById("focusTaskName").textContent.startsWith("Break time");
+
+  const message = isBreak
+    ? "Are you sure you want to leave your break?"
+    : "Are you sure you want to leave Focus Mode? Your progress will not be counted.";
+
+  if (!confirm(message)) return;
 
   clearInterval(window.focusInterval);
   document.getElementById("focusOverlay").classList.remove("active");
@@ -520,6 +526,22 @@ function taskHTML(task) {
   </div>`;
 }
 
+function quickBlock(label, start, end) {
+  const day = document.getElementById("scheduleDay").value;
+
+  const exists = state.schedule.some(block =>
+    block.day === day && block.start === start && block.end === end && block.label === label
+  );
+
+  if (exists) {
+    alert("That block is already in this day’s schedule.");
+    return;
+  }
+
+  state.schedule.push({ day, start, end, label });
+  save();
+}
+
 function render() {
   const today = new Date();
   document.getElementById("dateText").textContent =
@@ -537,7 +559,7 @@ function render() {
   );
   document.getElementById("focusTotal").textContent = totalFocusMinutes + " min";
 
-  const todayDate = today.toISOString().slice(0, 10);
+  const todayDate = today.toLocaleDateString("en-CA");
   const todayTasks = state.tasks.filter(task => !task.due || task.due === todayDate);
 
   document.getElementById("todayTasks").innerHTML =
