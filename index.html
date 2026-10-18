@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>TimeWise</title>
+<meta name="theme-color" content="#4f6df5">
+<title>TimePilot</title>
 <style>
   :root {
     --bg: #f4f6fb;
@@ -12,6 +13,8 @@
     --muted: #667085;
     --accent: #4f6df5;
     --border: #e4e7ef;
+    --good: #16a34a;
+    --danger: #dc2626;
   }
   body.dark {
     --bg: #0f1420;
@@ -27,24 +30,26 @@
     font-family: system-ui, -apple-system, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding-bottom: 80px;
+    padding-bottom: 90px;
   }
   header {
-    padding: 20px 16px 10px;
+    padding: 22px 16px 10px;
   }
-  header h1 { margin: 0; font-size: 24px; }
+  header h1 { margin: 0; font-size: 26px; }
   header p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
   main { padding: 0 16px; }
   .card {
     background: var(--card);
     border: 1px solid var(--border);
-    border-radius: 18px;
+    border-radius: 20px;
     padding: 16px;
     margin-bottom: 14px;
   }
+  h3 { margin: 0 0 12px; }
   .row { display: flex; gap: 8px; align-items: center; }
+  .wrap { flex-wrap: wrap; }
   .grow { flex: 1; }
-  input, select, textarea {
+  input, select {
     width: 100%;
     padding: 12px;
     border-radius: 12px;
@@ -56,28 +61,40 @@
   button {
     border: 0;
     border-radius: 12px;
-    padding: 12px 16px;
+    padding: 12px 14px;
     background: var(--accent);
     color: white;
     font-weight: 700;
-    font-size: 15px;
+    font-size: 14px;
   }
   .secondary {
     background: transparent;
     color: var(--accent);
     border: 1px solid var(--accent);
   }
+  .danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
   .task {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: 8px;
     padding: 12px;
     border-radius: 14px;
     border: 1px solid var(--border);
     margin-bottom: 8px;
   }
   .done { opacity: .55; text-decoration: line-through; }
-  .xp { font-size: 32px; font-weight: 800; color: var(--accent); }
+  .big { font-size: 30px; font-weight: 800; color: var(--accent); }
+  .small { font-size: 13px; color: var(--muted); }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
   nav {
     position: fixed;
     bottom: 0;
@@ -93,7 +110,7 @@
     background: none;
     color: var(--muted);
     font-size: 12px;
-    font-weight: 600;
+    font-weight: 700;
   }
   nav button.active { color: var(--accent); }
   .page { display: none; }
@@ -112,39 +129,45 @@
     z-index: 50;
   }
   #focusOverlay.active { display: flex; }
-  #timer { font-size: 72px; font-weight: 800; margin: 20px 0; }
-  .small { font-size: 13px; color: var(--muted); }
+  #timer { font-size: 72px; font-weight: 800; margin: 18px 0; }
 </style>
+<link rel="manifest" href="manifest.json">
 </head>
 <body>
 
 <header>
-  <h1>TimeWise</h1>
-  <p id="greeting">Plan your day. Focus. Level up.</p>
+  <h1>TimePilot</h1>
+  <p id="dateText"></p>
 </header>
 
 <main>
   <section id="today" class="page active">
     <div class="card">
-      <div class="row">
-        <div class="grow">
-          <div class="small">Your XP</div>
-          <div class="xp" id="xpDisplay">0 XP</div>
+      <div class="grid">
+        <div>
+          <div class="small">XP</div>
+          <div class="big" id="xpDisplay">0</div>
           <div class="small" id="levelDisplay">Level 1</div>
         </div>
         <div>
           <div class="small">Streak</div>
-          <div class="xp" id="streakDisplay">0🔥</div>
+          <div class="big" id="streakDisplay">0🔥</div>
+          <div class="small">Complete a task daily</div>
         </div>
       </div>
+      <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+      <div class="small">Total focus time</div>
+      <div class="big" id="focusTotal">0 min</div>
     </div>
-    <div class="card">
-      <h3>Today’s tasks</h3>
-      <div id="todayTasks"></div>
-    </div>
+
     <div class="card">
       <h3>Now</h3>
       <div id="currentBlock" class="small">No schedule block right now.</div>
+    </div>
+
+    <div class="card">
+      <h3>Today’s tasks</h3>
+      <div id="todayTasks"></div>
     </div>
   </section>
 
@@ -168,6 +191,7 @@
       <br><br>
       <button onclick="addTask()">Add task</button>
     </div>
+
     <div class="card">
       <h3>All tasks</h3>
       <div id="taskList"></div>
@@ -176,21 +200,34 @@
 
   <section id="schedule" class="page">
     <div class="card">
-      <h3>Add schedule block</h3>
+      <h3>Quick add</h3>
       <select id="scheduleDay">
         <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
         <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
       </select>
       <br><br>
+      <div class="row wrap">
+        <button onclick="quickBlock('Wake up', '05:30', '06:29')">Wake up</button>
+        <button onclick="quickBlock('School', '06:30', '13:00')">School</button>
+        <button onclick="quickBlock('Free time', '13:01', '16:00')">Free time</button>
+        <button onclick="quickBlock('Extracurricular', '16:01', '19:00')">Extracurricular</button>
+        <button onclick="quickBlock('Free time', '19:01', '20:00')">Free time</button>
+        <button onclick="quickBlock('Bed prep', '20:01', '21:00')">Bed prep</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Custom block</h3>
       <div class="row">
         <input id="blockStart" type="time" class="grow">
         <input id="blockEnd" type="time" class="grow">
       </div>
       <br>
-      <input id="blockLabel" placeholder="e.g. School, free time, extracurricular">
+      <input id="blockLabel" placeholder="Block name">
       <br><br>
       <button onclick="addBlock()">Add block</button>
     </div>
+
     <div class="card">
       <h3>Weekly schedule</h3>
       <div id="scheduleList"></div>
@@ -200,7 +237,7 @@
   <section id="focus" class="page">
     <div class="card">
       <h3>Focus Mode</h3>
-      <p class="small">Choose a task and focus without opening social media.</p>
+      <p class="small">Pick one task. Stay on this page until the timer ends.</p>
       <select id="focusTask"></select>
       <br><br>
       <select id="focusMinutes">
@@ -211,6 +248,12 @@
       <br><br>
       <button onclick="startFocus()">Start Focus</button>
     </div>
+
+    <div class="card">
+      <h3>Focus history</h3>
+      <div id="focusHistory"></div>
+    </div>
+
     <div class="card">
       <h3>Demo leaderboard</h3>
       <div id="leaderboard" class="small"></div>
@@ -220,7 +263,7 @@
   <section id="more" class="page">
     <div class="card">
       <h3>Profile</h3>
-      <input id="nickname" placeholder="Display name">
+      <input id="nickname" placeholder="Nickname">
       <br><br>
       <select id="nameMode">
         <option value="nickname">Show nickname</option>
@@ -228,31 +271,32 @@
         <option value="real">Show real name</option>
       </select>
       <br><br>
-      <input id="realName" placeholder="Real name, only if you choose to show it">
+      <input id="realName" placeholder="Real name, optional">
       <br><br>
       <button onclick="saveProfile()">Save profile</button>
     </div>
+
     <div class="card">
       <h3>Appearance</h3>
       <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
     </div>
+
     <div class="card">
       <h3>Privacy</h3>
       <p class="small">
-        This starter version saves data only in your browser. Do not enter sensitive
-        personal information. For a real school deployment, use minimal data, get
-        appropriate parent/school consent for younger students, and let users delete
-        their account and data.
+        TimePilot currently saves your tasks, schedule, XP, and focus history only in
+        this browser. Do not enter sensitive personal information. You can use a
+        nickname or remain anonymous on the leaderboard.
       </p>
     </div>
   </section>
 </main>
 
 <div id="focusOverlay">
-  <div class="small">FOCUS MODE</div>
+  <div class="small">TIMEPILOT</div>
   <div id="focusTaskName"></div>
   <div id="timer">25:00</div>
-  <button class="secondary" onclick="confirmExit()">Leave Focus Mode</button>
+  <button class="secondary" onclick="confirmExit()">Leave</button>
 </div>
 
 <nav>
@@ -264,26 +308,34 @@
 </nav>
 
 <script>
-let state = JSON.parse(localStorage.getItem("timewise") || "null") || {
-  xp: 0, streak: 0, tasks: [], schedule: [],
+const STORAGE_KEY = "timepilot";
+
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || {
+  xp: 0,
+  streak: 0,
+  lastActiveDay: "",
+  tasks: [],
+  schedule: [],
+  focusSessions: [],
   profile: { nickname: "", nameMode: "nickname", realName: "" }
 };
 
 function save() {
-  localStorage.setItem("timewise", JSON.stringify(state));
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
 }
 
 function showPage(name) {
   document.querySelectorAll(".page").forEach(p => p.classList.remove("active"));
   document.getElementById(name).classList.add("active");
-  document.querySelectorAll("nav button").forEach(b =>
-    b.classList.toggle("active", b.dataset.page === name));
+  document.querySelectorAll("nav button").forEach(button =>
+    button.classList.toggle("active", button.dataset.page === name));
 }
 
 function addTask() {
   const title = document.getElementById("taskTitle").value.trim();
   if (!title) return alert("Please enter a task name.");
+
   state.tasks.push({
     id: Date.now(),
     title,
@@ -292,27 +344,71 @@ function addTask() {
     due: document.getElementById("taskDue").value,
     done: false
   });
+
   document.getElementById("taskTitle").value = "";
+  document.getElementById("taskMinutes").value = "";
   save();
 }
 
 function completeTask(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task || task.done) return;
+
   task.done = true;
   state.xp += task.minutes >= 45 ? 25 : 10;
+  updateStreak();
+  save();
+}
+
+function updateStreak() {
+  const today = new Date().toDateString();
+  if (state.lastActiveDay === today) return;
+
+  const yesterday = new Date(Date.now() - 86400000).toDateString();
+  state.streak = state.lastActiveDay === yesterday ? state.streak + 1 : 1;
+  state.lastActiveDay = today;
+}
+
+function deleteTask(id) {
+  if (!confirm("Delete this task?")) return;
+  state.tasks = state.tasks.filter(task => task.id !== id);
+  save();
+}
+
+function editTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+
+  const title = prompt("Edit task name:", task.title);
+  if (title === null) return;
+
+  const minutes = prompt("Duration in minutes:", task.minutes);
+  const due = prompt("Due date (YYYY-MM-DD):", task.due || "");
+
+  task.title = title.trim() || task.title;
+  task.minutes = Number(minutes) || task.minutes;
+  task.due = due.trim();
+  save();
+}
+
+function quickBlock(label, start, end) {
+  const day = document.getElementById("scheduleDay").value;
+  state.schedule.push({ day, start, end, label });
   save();
 }
 
 function addBlock() {
   const label = document.getElementById("blockLabel").value.trim();
   if (!label) return alert("Please enter a block name.");
+
   state.schedule.push({
     day: document.getElementById("scheduleDay").value,
     start: document.getElementById("blockStart").value,
     end: document.getElementById("blockEnd").value,
     label
   });
+
+  document.getElementById("blockLabel").value = "";
   save();
 }
 
@@ -320,32 +416,73 @@ function startFocus() {
   const taskId = Number(document.getElementById("focusTask").value);
   const task = state.tasks.find(t => t.id === taskId);
   const minutes = Number(document.getElementById("focusMinutes").value);
+
   document.getElementById("focusTaskName").textContent =
     task ? task.title : "Focus session";
   document.getElementById("focusOverlay").classList.add("active");
+
   let remaining = minutes * 60;
   clearInterval(window.focusInterval);
+
   window.focusInterval = setInterval(() => {
     remaining--;
-    const m = String(Math.floor(remaining / 60)).padStart(2, "0");
-    const s = String(remaining % 60).padStart(2, "0");
-    document.getElementById("timer").textContent = `${m}:${s}`;
+    updateTimerText(remaining);
+
     if (remaining <= 0) {
       clearInterval(window.focusInterval);
-      state.xp += 15;
-      if (task) task.done = true;
+      finishFocus(task, minutes);
+    }
+  }, 1000);
+}
+
+function updateTimerText(remaining) {
+  const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
+  const seconds = String(remaining % 60).padStart(2, "0");
+  document.getElementById("timer").textContent = `${minutes}:${seconds}`;
+}
+
+function finishFocus(task, minutes) {
+  state.xp += 15;
+
+  state.focusSessions.push({
+    taskId: task ? task.id : null,
+    taskTitle: task ? task.title : "Focus session",
+    minutes,
+    completedAt: new Date().toISOString()
+  });
+
+  if (task) task.done = true;
+
+  save();
+  showBreak(5);
+}
+
+function showBreak(minutes = 5) {
+  document.getElementById("focusTaskName").textContent =
+    "Break time: stretch, drink water, and do not open social media yet.";
+  document.getElementById("timer").textContent = `${minutes}:00`;
+  document.getElementById("focusOverlay").classList.add("active");
+
+  let remaining = minutes * 60;
+  clearInterval(window.focusInterval);
+
+  window.focusInterval = setInterval(() => {
+    remaining--;
+    updateTimerText(remaining);
+
+    if (remaining <= 0) {
+      clearInterval(window.focusInterval);
       document.getElementById("focusOverlay").classList.remove("active");
-      alert("Focus complete! +15 XP");
-      save();
+      alert("Break finished. Ready for another focus session?");
     }
   }, 1000);
 }
 
 function confirmExit() {
-  if (confirm("Are you sure you want to leave Focus Mode? Your progress will not be counted.")) {
-    clearInterval(window.focusInterval);
-    document.getElementById("focusOverlay").classList.remove("active");
-  }
+  if (!confirm("Are you sure you want to leave Focus Mode? Your progress will not be counted.")) return;
+
+  clearInterval(window.focusInterval);
+  document.getElementById("focusOverlay").classList.remove("active");
 }
 
 function toggleDark() {
@@ -362,95 +499,110 @@ function saveProfile() {
 }
 
 function displayName() {
-  const p = state.profile;
-  if (p.nameMode === "anon") return "Anonymous";
-  if (p.nameMode === "real") return p.realName || "Student";
-  return p.nickname || "Student";
+  const profile = state.profile;
+
+  if (profile.nameMode === "anon") return "Anonymous";
+  if (profile.nameMode === "real") return profile.realName || "Student";
+  return profile.nickname || "Student";
+}
+
+function taskHTML(task) {
+  return `<div class="task ${task.done ? "done" : ""}">
+    <div>
+      <b>${task.title}</b><br>
+      <span class="small">${task.category} • ${task.minutes} min • ${task.due || "No due date"}</span>
+    </div>
+    <div class="row">
+      ${task.done ? "<span>✅</span>" : `<button onclick="completeTask(${task.id})">Done</button>`}
+      <button class="secondary" onclick="editTask(${task.id})">Edit</button>
+      <button class="danger" onclick="deleteTask(${task.id})">✕</button>
+    </div>
+  </div>`;
 }
 
 function render() {
-  document.getElementById("xpDisplay").textContent = state.xp + " XP";
+  const today = new Date();
+  document.getElementById("dateText").textContent =
+    today.toLocaleDateString("en-US", {
+      weekday: "long", day: "numeric", month: "long", year: "numeric"
+    });
+
+  document.getElementById("xpDisplay").textContent = state.xp;
   document.getElementById("levelDisplay").textContent =
     "Level " + (Math.floor(state.xp / 100) + 1);
   document.getElementById("streakDisplay").textContent = state.streak + "🔥";
 
-  const today = new Date().toISOString().slice(0, 10);
-  const todayTasks = state.tasks.filter(t => !t.due || t.due === today);
+  const totalFocusMinutes = state.focusSessions.reduce(
+    (total, session) => total + session.minutes, 0
+  );
+  document.getElementById("focusTotal").textContent = totalFocusMinutes + " min";
+
+  const todayDate = today.toISOString().slice(0, 10);
+  const todayTasks = state.tasks.filter(task => !task.due || task.due === todayDate);
+
   document.getElementById("todayTasks").innerHTML =
-    todayTasks.map(t => taskHTML(t)).join("") || "<div class='small'>No tasks for today.</div>";
+    todayTasks.map(taskHTML).join("") ||
+    "<div class='small'>No tasks for today. Add one in the Tasks tab.</div>";
 
   document.getElementById("taskList").innerHTML =
-    state.tasks.map(t => taskHTML(t)).join("") || "<div class='small'>No tasks yet.</div>";
+    state.tasks.map(taskHTML).join("") ||
+    "<div class='small'>No tasks yet.</div>";
 
-  document.getElementById("scheduleList").innerHTML = state.schedule
-    .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start))
-    .map(b => `<div class="task"><div><b>${b.day}</b><br>${b.start}–${b.end}</div><div>${b.label}</div></div>`)
-    .join("") || "<div class='small'>No schedule blocks yet.</div>";
+  document.getElementById("scheduleList").innerHTML =
+    state.schedule
+      .slice()
+      .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start))
+      .map(block => `<div class="task">
+        <div><b>${block.day}</b><br><span class="small">${block.start}–${block.end}</span></div>
+        <div>${block.label}</div>
+      </div>`)
+      .join("") ||
+    "<div class='small'>No schedule blocks yet.</div>";
 
   document.getElementById("focusTask").innerHTML =
     `<option value="">No selected task</option>` +
-    state.tasks.filter(t => !t.done)
-      .map(t => `<option value="${t.id}">${t.title}</option>`).join("");
+    state.tasks
+      .filter(task => !task.done)
+      .map(task => `<option value="${task.id}">${task.title}</option>`)
+      .join("");
 
-  const demo = [
+  document.getElementById("focusHistory").innerHTML =
+    state.focusSessions
+      .slice()
+      .reverse()
+      .slice(0, 10)
+      .map(session => `<div class="task">
+        <div><b>${session.taskTitle}</b><br>
+        <span class="small">${session.minutes} min • ${new Date(session.completedAt).toLocaleString()}</span></div>
+      </div>`)
+      .join("") ||
+    "<div class='small'>No focus sessions yet.</div>";
+
+  const leaderboard = [
     { name: "Aisyah", xp: 320 },
     { name: "Rizky", xp: 275 },
     { name: displayName(), xp: state.xp }
   ].sort((a, b) => b.xp - a.xp);
 
-  document.getElementById("leaderboard").innerHTML = demo
-    .map((u, i) => `${i + 1}. ${u.name} — ${u.xp} XP`)
-    .join("<br>");
+  document.getElementById("leaderboard").innerHTML =
+    leaderboard
+      .map((user, index) => `${index + 1}. ${user.name} — ${user.xp} XP`)
+      .join("<br>");
 
   document.getElementById("nickname").value = state.profile.nickname;
   document.getElementById("nameMode").value = state.profile.nameMode;
   document.getElementById("realName").value = state.profile.realName;
 
-  const now = new Date();
-  const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
-  const time = now.toTimeString().slice(0, 5);
-  const block = state.schedule.find(b =>
-    b.day === dayName && b.start <= time && time <= b.end);
+  const dayName = today.toLocaleDateString("en-US", { weekday: "long" });
+  const time = today.toTimeString().slice(0, 5);
+  const currentBlock = state.schedule.find(block =>
+    block.day === dayName && block.start <= time && time <= block.end
+  );
+
   document.getElementById("currentBlock").textContent =
-    block ? `${block.label} — ${block.start} to ${block.end}` :
-    "No schedule block right now.";
-}
-
-function taskHTML(t) {
-  return `<div class="task ${t.done ? "done" : ""}">
-    <div>
-      <b>${t.title}</b><br>
-      <span class="small">${t.category} • ${t.minutes} min • ${t.due || "No due date"}</span>
-    </div>
-    <div class="row">
-      ${t.done ? "<span>✅</span>" : `<button onclick="completeTask(${t.id})">Done</button>`}
-      <button class="secondary" onclick="editTask(${t.id})">Edit</button>
-      <button class="secondary" onclick="deleteTask(${t.id})">✕</button>
-    </div>
-  </div>`;
-}
-
-function deleteTask(id) {
-  if (!confirm("Delete this task?")) return;
-  state.tasks = state.tasks.filter(t => t.id !== id);
-  save();
-}
-
-function editTask(id) {
-  const task = state.tasks.find(t => t.id === id);
-  if (!task) return;
-
-  const newTitle = prompt("Edit task name:", task.title);
-  if (newTitle === null) return;
-
-  const newMinutes = prompt("Edit duration in minutes:", task.minutes);
-  const newDue = prompt("Edit due date (YYYY-MM-DD):", task.due || "");
-
-  task.title = newTitle.trim() || task.title;
-  task.minutes = Number(newMinutes) || task.minutes;
-  task.due = newDue.trim();
-
-  save();
+    currentBlock
+      ? `${currentBlock.label} — ${currentBlock.start} to ${currentBlock.end}`
+      : "No schedule block right now.";
 }
 
 render();
