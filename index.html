@@ -418,10 +418,39 @@ function render() {
 
 function taskHTML(t) {
   return `<div class="task ${t.done ? "done" : ""}">
-    <div><b>${t.title}</b><br>
-    <span class="small">${t.category} • ${t.minutes} min • ${t.due || "No due date"}</span></div>
-    ${t.done ? "<span>✅</span>" : `<button onclick="completeTask(${t.id})">Done</button>`}
+    <div>
+      <b>${t.title}</b><br>
+      <span class="small">${t.category} • ${t.minutes} min • ${t.due || "No due date"}</span>
+    </div>
+    <div class="row">
+      ${t.done ? "<span>✅</span>" : `<button onclick="completeTask(${t.id})">Done</button>`}
+      <button class="secondary" onclick="editTask(${t.id})">Edit</button>
+      <button class="secondary" onclick="deleteTask(${t.id})">✕</button>
+    </div>
   </div>`;
+}
+
+function deleteTask(id) {
+  if (!confirm("Delete this task?")) return;
+  state.tasks = state.tasks.filter(t => t.id !== id);
+  save();
+}
+
+function editTask(id) {
+  const task = state.tasks.find(t => t.id === id);
+  if (!task) return;
+
+  const newTitle = prompt("Edit task name:", task.title);
+  if (newTitle === null) return;
+
+  const newMinutes = prompt("Edit duration in minutes:", task.minutes);
+  const newDue = prompt("Edit due date (YYYY-MM-DD):", task.due || "");
+
+  task.title = newTitle.trim() || task.title;
+  task.minutes = Number(newMinutes) || task.minutes;
+  task.due = newDue.trim();
+
+  save();
 }
 
 render();
