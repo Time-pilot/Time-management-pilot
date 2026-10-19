@@ -6,6 +6,12 @@
 <meta name="theme-color" content="#4f6df5">
 <title>TimePilot</title>
 <style>
+  .logo {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  object-fit: cover;
+  }
   :root {
     --bg: #f4f6fb;
     --card: #ffffff;
@@ -136,7 +142,10 @@
 <body>
 
 <header>
-  <h1>TimePilot</h1>
+  <div class="row">
+    <img src="Logo Black no text.png" alt="Time Pilot logo" class="logo">
+    <h1>TimePilot</h1>
+  </div>
   <p id="dateText"></p>
 </header>
 
