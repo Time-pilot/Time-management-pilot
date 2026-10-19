@@ -270,35 +270,50 @@
   </section>
 
   <section id="more" class="page">
-    <div class="card">
-      <h3>Profile</h3>
-      <input id="nickname" placeholder="Nickname">
-      <br><br>
-      <select id="nameMode">
-        <option value="nickname">Show nickname</option>
-        <option value="anon">Anonymous</option>
-        <option value="real">Show real name</option>
-      </select>
-      <br><br>
-      <input id="realName" placeholder="Real name, optional">
-      <br><br>
-      <button onclick="saveProfile()">Save profile</button>
+  <div class="card" id="authCard">
+    <h3>Account</h3>
+    <input id="authEmail" type="email" placeholder="Email">
+    <br><br>
+    <input id="authPassword" type="password" placeholder="Password">
+    <br><br>
+    <div class="row">
+      <button onclick="signUp()">Sign up</button>
+      <button class="secondary" onclick="signIn()">Sign in</button>
     </div>
+  </div>
 
-    <div class="card">
-      <h3>Appearance</h3>
-      <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
-    </div>
+  <div class="card" id="profileCard" style="display:none">
+    <h3>Profile</h3>
+    <input id="nickname" placeholder="Nickname">
+    <br><br>
+    <select id="nameMode">
+      <option value="nickname">Show nickname</option>
+      <option value="anon">Anonymous</option>
+      <option value="real">Show real name</option>
+    </select>
+    <br><br>
+    <input id="realName" placeholder="Real name, optional">
+    <br><br>
+    <button onclick="saveProfile()">Save profile</button>
 
-    <div class="card">
-      <h3>Privacy</h3>
-      <p class="small">
-        TimePilot currently saves your tasks, schedule, XP, and focus history only in
-        this browser. Do not enter sensitive personal information. You can use a
-        nickname or remain anonymous on the leaderboard.
-      </p>
-    </div>
-  </section>
+    <br><br>
+    <button class="danger" onclick="signOutUser()">Log out</button>
+  </div>
+
+  <div class="card">
+    <h3>Appearance</h3>
+    <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
+  </div>
+
+  <div class="card">
+    <h3>Privacy</h3>
+    <p class="small">
+      TimePilot currently saves your tasks, schedule, XP, and focus history only in
+      this browser. Do not enter sensitive personal information. You can use a
+      nickname or remain anonymous on the leaderboard.
+    </p>
+  </div>
+</section>
 </main>
 
 <div id="focusOverlay">
@@ -319,7 +334,7 @@
 <script>
 const STORAGE_KEY = "timewise";
 
-let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || {
+const defaultState = {
   xp: 0,
   streak: 0,
   lastActiveDay: "",
@@ -328,6 +343,22 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || {
   focusSessions: [],
   profile: { nickname: "", nameMode: "nickname", realName: "" }
 };
+
+let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || defaultState;
+
+// Fix old saved data that is missing newer fields
+state.xp ??= 0;
+state.streak ??= 0;
+state.lastActiveDay ??= "";
+state.tasks ??= [];
+state.schedule ??= [];
+state.focusSessions ??= [];
+state.profile ??= { nickname: "", nameMode: "nickname", realName: "" };
+state.profile.nickname ??= "";
+state.profile.nameMode ??= "nickname";
+state.profile.realName ??= "";
+
+save();
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
@@ -397,12 +428,6 @@ function editTask(id) {
   task.title = title.trim() || task.title;
   task.minutes = Number(minutes) || task.minutes;
   task.due = due.trim();
-  save();
-}
-
-function quickBlock(label, start, end) {
-  const day = document.getElementById("scheduleDay").value;
-  state.schedule.push({ day, start, end, label });
   save();
 }
 
@@ -637,6 +662,81 @@ function render() {
 }
 
 render();
+</script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+  import {
+    getAuth,
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyA5TVeXQv2xyxLf-P_CU0ubYr771cc1o-Y",
+    authDomain: "timepilot-27958.firebaseapp.com",
+    projectId: "timepilot-27958",
+    storageBucket: "timepilot-27958.firebasestorage.app",
+    messagingSenderId: "1075780400734",
+    appId: "1:1075780400734:web:9841bd9ae261fa1c1e66cf"
+
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  window.signUp = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+
+    if (!email || !password) {
+      alert("Please enter an email and password.");
+      return;
+    }
+
+    try {
+      await createUserWithEmailAndPassword(auth, email, password);
+      alert("Account created and signed in!");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  window.signIn = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+    const password = document.getElementById("authPassword").value;
+
+    if (!email || !password) {
+      alert("Please enter an email and password.");
+      return;
+    }
+
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      alert("Signed in!");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
+  window.signOutUser = async function () {
+    await signOut(auth);
+  };
+
+  onAuthStateChanged(auth, user => {
+    const authCard = document.getElementById("authCard");
+    const profileCard = document.getElementById("profileCard");
+
+    if (user) {
+      authCard.style.display = "none";
+      profileCard.style.display = "block";
+    } else {
+      authCard.style.display = "block";
+      profileCard.style.display = "none";
+    }
+  });
 </script>
 </body>
 </html>
