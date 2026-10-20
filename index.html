@@ -271,15 +271,17 @@
 
   <section id="more" class="page">
   <div class="card" id="authCard">
-    <h3>Account</h3>
+     <h3>Account</h3>
     <input id="authEmail" type="email" placeholder="Email">
-    <br><br>
-    <input id="authPassword" type="password" placeholder="Password">
-    <br><br>
-    <div class="row">
-      <button onclick="signUp()">Sign up</button>
-      <button class="secondary" onclick="signIn()">Sign in</button>
+     <br><br>
+     <input id="authPassword" type="password" placeholder="Password">
+     <br><br>
+     <div class="row">
+       <button onclick="signUp()">Sign up</button>
+       <button class="secondary" onclick="signIn()">Sign in</button>
     </div>
+  <br>
+  <button class="secondary" onclick="resetPassword()">Forgot password?</button>
   </div>
 
   <div class="card" id="profileCard" style="display:none">
@@ -363,6 +365,10 @@ save();
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   render();
+
+  if (window.saveLeaderboardProfile) {
+    window.saveLeaderboardProfile();
+  }
 }
 
 function showPage(name) {
@@ -491,6 +497,8 @@ function finishFocus(task, minutes) {
   showBreak(5);
 }
 
+//KoRn 4 LIFEEE
+
 function showBreak(minutes = 5) {
   document.getElementById("focusTaskName").textContent =
     "Break time: stretch, drink water, and do not open social media yet.";
@@ -559,6 +567,8 @@ function taskHTML(task) {
     </div>
   </div>`;
 }
+
+//Hello lol
 
 function quickBlock(label, start, end) {
   const day = document.getElementById("scheduleDay").value;
@@ -634,12 +644,6 @@ function render() {
       .join("") ||
     "<div class='small'>No focus sessions yet.</div>";
 
-  const leaderboard = [
-    { name: "Aisyah", xp: 320 },
-    { name: "Rizky", xp: 275 },
-    { name: displayName(), xp: state.xp }
-  ].sort((a, b) => b.xp - a.xp);
-
   document.getElementById("leaderboard").innerHTML =
     leaderboard
       .map((user, index) => `${index + 1}. ${user.name} — ${user.xp} XP`)
@@ -665,17 +669,29 @@ render();
 </script>
 
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-app.js";
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-app.js";
   import {
     getAuth,
     createUserWithEmailAndPassword,
     signInWithEmailAndPassword,
     onAuthStateChanged,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/13.0.0/firebase-auth.js";
+    signOut,
+    sendPasswordResetEmail
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-auth.js";
+  import {
+    getFirestore,
+    doc,
+    setDoc,
+    getDoc,
+    collection,
+    query,
+    orderBy,
+    limit,
+    getDocs
+  } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
   const firebaseConfig = {
-    apiKey: "AIzaSyA5TVeXQv2xyxLf-P_CU0ubYr771cc1o-Y",
+     apiKey: "AIzaSyA5TVeXQv2xyxLf-P_CU0ubYr771cc1o-Y",
     authDomain: "timepilot-27958.firebaseapp.com",
     projectId: "timepilot-27958",
     storageBucket: "timepilot-27958.firebasestorage.app",
@@ -686,6 +702,9 @@ render();
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUser = null;
 
   window.signUp = async function () {
     const email = document.getElementById("authEmail").value.trim();
@@ -697,8 +716,9 @@ render();
     }
 
     try {
-      await createUserWithEmailAndPassword(auth, email, password);
-      alert("Account created and signed in!");
+      const result = await createUserWithEmailAndPassword(auth, email, password);
+      await createUserProfile(result.user);
+      alert("Account created!");
     } catch (error) {
       alert(error.message);
     }
@@ -721,22 +741,110 @@ render();
     }
   };
 
+  window.resetPassword = async function () {
+    const email = document.getElementById("authEmail").value.trim();
+
+    if (!email) {
+      alert("Enter your email first, then press Forgot password.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert("Password reset email sent. Check your inbox and spam folder.");
+    } catch (error) {
+      alert(error.message);
+    }
+  };
+
   window.signOutUser = async function () {
     await signOut(auth);
   };
 
-  onAuthStateChanged(auth, user => {
+  async function createUserProfile(user) {
+    const userRef = doc(db, "users", user.uid);
+
+    const existing = await getDoc(userRef);
+    if (existing.exists()) return;
+
+    await setDoc(userRef, {
+      displayName: "Anonymous",
+      nameMode: "anon",
+      xp: 0,
+      createdAt: new Date().toISOString()
+    });
+  }
+
+  window.saveLeaderboardProfile = async function () {
+    if (!currentUser) return;
+
+    const profile = state.profile;
+    const displayName =
+      profile.nameMode === "anon" ? "Anonymous" :
+      profile.nameMode === "real" ? (profile.realName || "Student") :
+      (profile.nickname || "Student");
+
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      {
+        displayName,
+        nameMode: profile.nameMode,
+        xp: state.xp
+      },
+      { merge: true }
+    );
+  };
+
+  async function loadLeaderboard() {
+    if (!currentUser) {
+      document.getElementById("leaderboard").innerHTML =
+        "<div class='small'>Sign in to see the global leaderboard.</div>";
+      return;
+    }
+
+    const usersQuery = query(
+      collection(db, "users"),
+      orderBy("xp", "desc"),
+      limit(10)
+    );
+
+    const snapshot = await getDocs(usersQuery);
+
+    const rows = [];
+    let rank = 1;
+
+    snapshot.forEach(userDoc => {
+      const data = userDoc.data();
+      rows.push(`${rank}. ${data.displayName || "Anonymous"} — ${data.xp || 0} XP`);
+      rank++;
+    });
+
+    document.getElementById("leaderboard").innerHTML =
+      rows.join("<br>") ||
+      "<div class='small'>No leaderboard entries yet.</div>";
+  }
+
+  onAuthStateChanged(auth, async user => {
+    currentUser = user;
+
     const authCard = document.getElementById("authCard");
     const profileCard = document.getElementById("profileCard");
 
     if (user) {
       authCard.style.display = "none";
       profileCard.style.display = "block";
+
+      await createUserProfile(user);
+      await loadLeaderboard();
     } else {
       authCard.style.display = "block";
       profileCard.style.display = "none";
+      loadLeaderboard();
     }
   });
+
+ 
+  
 </script>
 </body>
 </html>
