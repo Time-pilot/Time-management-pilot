@@ -252,7 +252,7 @@
     <div class="card">
       <h3>Focus Mode</h3>
       <p class="small">Pick one task. Stay on this page until the timer ends.</p>
-      <select id="focusTask"></select>
+      <select id="focusTask" onchange="updateFocusDuration()"></select>
       <br><br>
       <select id="focusMinutes">
         <option value="15">15 minutes</option>
@@ -261,7 +261,7 @@
       </select>
       <br><br>
       <button onclick="startFocus()">Start Focus</button>
-    </div>
+     </div>
 
     <div class="card">
       <h3>Focus history</h3>
@@ -316,6 +316,57 @@
     </p>
   </div>
 </section>
+
+<section id="profile" class="page">
+  <div class="card" style="text-align:center">
+    <img id="avatar" src="logo.png" alt="Profile avatar"
+         style="width:90px;height:90px;border-radius:50%;object-fit:cover">
+    <h3 id="profileDisplayName" style="margin:10px 0 4px">Student</h3>
+    <div class="small" id="profileBio">No bio yet.</div>
+  </div>
+
+  <div class="card">
+    <h3>Stats</h3>
+    <div class="grid">
+      <div>
+        <div class="small">XP</div>
+        <div class="big" id="profileXp">0</div>
+      </div>
+      <div>
+        <div class="small">Streak</div>
+        <div class="big" id="profileStreak">0🔥</div>
+      </div>
+      <div>
+        <div class="small">Focus sessions</div>
+        <div class="big" id="profileFocusCount">0</div>
+      </div>
+      <div>
+        <div class="small">Focus hours</div>
+        <div class="big" id="profileFocusHours">0.0</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Edit profile</h3>
+    <input id="bioInput" placeholder="Write a short bio">
+    <br><br>
+    <input id="avatarUrl" placeholder="Paste avatar image URL">
+    <br><br>
+    <button onclick="saveProfile()">Save profile</button>
+  </div>
+
+  <div class="card">
+    <h3>Achievements</h3>
+    <div id="achievements"></div>
+  </div>
+
+  <div class="card">
+    <h3>Recent focus sessions</h3>
+    <div id="profileHistory"></div>
+  </div>
+</section>
+
 </main>
 
 <div id="focusOverlay">
@@ -330,6 +381,7 @@
   <button data-page="tasks" onclick="showPage('tasks')">Tasks</button>
   <button data-page="schedule" onclick="showPage('schedule')">Schedule</button>
   <button data-page="focus" onclick="showPage('focus')">Focus</button>
+  <button data-page="profile" onclick="showPage('profile')">Profile</button>
   <button data-page="more" onclick="showPage('more')">More</button>
 </nav>
 
@@ -343,7 +395,13 @@ const defaultState = {
   tasks: [],
   schedule: [],
   focusSessions: [],
-  profile: { nickname: "", nameMode: "nickname", realName: "" }
+  profile: {
+  nickname: "",
+  nameMode: "nickname",
+  realName: "",
+  bio: "",
+  avatarUrl: ""
+}
 };
 
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || defaultState;
@@ -359,6 +417,8 @@ state.profile ??= { nickname: "", nameMode: "nickname", realName: "" };
 state.profile.nickname ??= "";
 state.profile.nameMode ??= "nickname";
 state.profile.realName ??= "";
+state.profile.bio ??= "";
+state.profile.avatarUrl ??= "";
 
 save();
 
@@ -395,14 +455,13 @@ function addTask() {
   document.getElementById("taskMinutes").value = "";
   save();
 }
+//i want sum food bc im hungry as hell bro
 
 function completeTask(id) {
   const task = state.tasks.find(t => t.id === id);
   if (!task || task.done) return;
 
   task.done = true;
-  state.xp += task.minutes >= 45 ? 25 : 10;
-  updateStreak();
   save();
 }
 
@@ -414,6 +473,7 @@ function updateStreak() {
   state.streak = state.lastActiveDay === yesterday ? state.streak + 1 : 1;
   state.lastActiveDay = today;
 }
+
 
 function deleteTask(id) {
   if (!confirm("Delete this task?")) return;
@@ -475,6 +535,21 @@ function startFocus() {
   }, 1000);
 }
 
+function updateFocusDuration() {
+  const taskId = Number(document.getElementById("focusTask").value);
+  const task = state.tasks.find(t => t.id === taskId);
+  const durationSelect = document.getElementById("focusMinutes");
+
+  if (task && task.minutes >= 5) {
+    durationSelect.value = task.minutes;
+    durationSelect.disabled = true;
+  } else {
+    durationSelect.value = "25";
+    durationSelect.disabled = false;
+  }
+}
+
+
 function updateTimerText(remaining) {
   const minutes = String(Math.floor(remaining / 60)).padStart(2, "0");
   const seconds = String(remaining % 60).padStart(2, "0");
@@ -482,21 +557,25 @@ function updateTimerText(remaining) {
 }
 
 function finishFocus(task, minutes) {
-  state.xp += 15;
+  const xpEarned = Math.max(5, Math.round(minutes / 5) * 5);
+
+  state.xp += xpEarned;
+  state.lastFocusXp = xpEarned;
 
   state.focusSessions.push({
     taskId: task ? task.id : null,
     taskTitle: task ? task.title : "Focus session",
     minutes,
+    xpEarned,
     completedAt: new Date().toISOString()
   });
 
   if (task) task.done = true;
 
+  updateStreak();
   save();
   showBreak(5);
 }
-
 //KoRn 4 LIFEEE
 
 function showBreak(minutes = 5) {
@@ -541,9 +620,57 @@ function saveProfile() {
   state.profile = {
     nickname: document.getElementById("nickname").value.trim(),
     nameMode: document.getElementById("nameMode").value,
-    realName: document.getElementById("realName").value.trim()
+    realName: document.getElementById("realName").value.trim(),
+    bio: document.getElementById("bioInput").value.trim(),
+    avatarUrl: document.getElementById("avatarUrl").value.trim()
   };
+
   save();
+}
+
+function renderProfile() {
+  const profile = state.profile;
+
+  const name =
+    profile.nameMode === "anon" ? "Anonymous" :
+    profile.nameMode === "real" ? (profile.realName || "Student") :
+    (profile.nickname || "Student");
+
+  document.getElementById("profileDisplayName").textContent = name;
+  document.getElementById("profileBio").textContent =
+    profile.bio || "No bio yet.";
+
+  const avatar = document.getElementById("avatar");
+  avatar.src = profile.avatarUrl || "logo.png";
+
+  document.getElementById("profileXp").textContent = state.xp;
+  document.getElementById("profileStreak").textContent = state.streak + "🔥";
+
+  const focusCount = state.focusSessions.length;
+  const focusMinutes = state.focusSessions.reduce(
+    (total, session) => total + session.minutes, 0
+  );
+
+  document.getElementById("profileFocusCount").textContent = focusCount;
+  document.getElementById("profileFocusHours").textContent =
+    (focusMinutes / 60).toFixed(1);
+
+  document.getElementById("bioInput").value = profile.bio || "";
+  document.getElementById("avatarUrl").value = profile.avatarUrl || "";
+
+  document.getElementById("profileHistory").innerHTML =
+    state.focusSessions
+      .slice()
+      .reverse()
+      .slice(0, 5)
+      .map(session => `<div class="task">
+        <div><b>${session.taskTitle}</b><br>
+        <span class="small">${session.minutes} min • +${session.xpEarned || 0} XP</span></div>
+      </div>`)
+      .join("") ||
+    "<div class='small'>No focus sessions yet.</div>";
+
+  renderAchievements();
 }
 
 function displayName() {
@@ -569,6 +696,30 @@ function taskHTML(task) {
 }
 
 //Hello lol
+
+function renderAchievements() {
+  const focusCount = state.focusSessions.length;
+  const focusMinutes = state.focusSessions.reduce(
+    (total, session) => total + session.minutes, 0
+  );
+
+  const achievements = [
+    { name: "First Flight", emoji: "🚀", earned: focusCount >= 1 },
+    { name: "Focus Rookie", emoji: "🎯", earned: focusCount >= 5 },
+    { name: "Deep Diver", emoji: "🌊", earned: focusCount >= 10 },
+    { name: "One Hour Club", emoji: "⏰", earned: focusMinutes >= 60 },
+    { name: "Five Hour Pilot", emoji: "🛫", earned: focusMinutes >= 300 },
+    { name: "Streak Starter", emoji: "🔥", earned: state.streak >= 3 },
+    { name: "Week Warrior", emoji: "📅", earned: state.streak >= 7 }
+  ];
+
+  document.getElementById("achievements").innerHTML = achievements
+    .map(item => `<div class="task ${item.earned ? "" : "done"}">
+      <div><b>${item.emoji} ${item.name}</b></div>
+      <div class="small">${item.earned ? "Unlocked" : "Locked"}</div>
+    </div>`)
+    .join("");
+}
 
 function quickBlock(label, start, end) {
   const day = document.getElementById("scheduleDay").value;
@@ -626,11 +777,13 @@ function render() {
     "<div class='small'>No schedule blocks yet.</div>";
 
   document.getElementById("focusTask").innerHTML =
-    `<option value="">No selected task</option>` +
+  `<option value="">No selected task</option>` +
     state.tasks
       .filter(task => !task.done)
-      .map(task => `<option value="${task.id}">${task.title}</option>`)
+      .map(task => `<option value="${task.id}">${task.title} — ${task.minutes} min</option>`)
       .join("");
+
+  updateFocusDuration();
 
   document.getElementById("focusHistory").innerHTML =
     state.focusSessions
@@ -658,6 +811,9 @@ function render() {
     currentBlock
       ? `${currentBlock.label} — ${currentBlock.start} to ${currentBlock.end}`
       : "No schedule block right now.";
+
+  
+
 }
 
 render();
@@ -790,6 +946,8 @@ console.log("Firebase module loaded");
       {
         displayName,
         nameMode: profile.nameMode,
+        bio: profile.bio || "",
+        avatarUrl: profile.avatarUrl || "",
         xp: state.xp
       },
       { merge: true }
