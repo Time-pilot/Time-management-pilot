@@ -519,6 +519,29 @@ function addBlock() {
   save();
 }
 
+function deleteBlock(index) {
+  if (!confirm("Delete this schedule block?")) return;
+  state.schedule.splice(index, 1);
+  save();
+}
+
+function editBlock(index) {
+  const block = state.schedule[index];
+  if (!block) return;
+
+  const label = prompt("Edit block name:", block.label);
+  if (label === null) return;
+
+  const start = prompt("Edit start time (HH:MM):", block.start);
+  const end = prompt("Edit end time (HH:MM):", block.end);
+
+  block.label = label.trim() || block.label;
+  block.start = start || block.start;
+  block.end = end || block.end;
+
+  save();
+}
+
 function startFocus() {
   const taskId = Number(document.getElementById("focusTask").value);
   const task = state.tasks.find(t => t.id === taskId);
@@ -801,15 +824,22 @@ function render() {
     "<div class='small'>No tasks yet.</div>";
 
   document.getElementById("scheduleList").innerHTML =
-    state.schedule
-      .slice()
-      .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start))
-      .map(block => `<div class="task">
-        <div><b>${block.day}</b><br><span class="small">${block.start}–${block.end}</span></div>
+  state.schedule
+    .slice()
+    .sort((a, b) => a.day.localeCompare(b.day) || a.start.localeCompare(b.start))
+    .map((block, index) => `<div class="task">
+      <div>
+        <b>${block.day}</b><br>
+        <span class="small">${block.start}–${block.end}</span>
+      </div>
+      <div class="row">
         <div>${block.label}</div>
-      </div>`)
-      .join("") ||
-    "<div class='small'>No schedule blocks yet.</div>";
+        <button class="secondary" onclick="editBlock(${index})">Edit</button>
+        <button class="danger" onclick="deleteBlock(${index})">✕</button>
+      </div>
+    </div>`)
+    .join("") ||
+  "<div class='small'>No schedule blocks yet.</div>";
 
   document.getElementById("focusTask").innerHTML =
   `<option value="">No selected task</option>` +
@@ -876,7 +906,8 @@ import {
   orderBy,
   limit,
   getDocs,
-  onSnapshot
+  onSnapshot,
+  deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
 console.log("Firebase module loaded");
@@ -984,6 +1015,11 @@ console.log("Firebase module loaded");
       ? profile.avatarUrl
       : "";
 
+  const focusCount = state.focusSessions.length;
+  const focusMinutes = state.focusSessions.reduce(
+    (total, session) => total + session.minutes, 0
+  );
+
   await setDoc(
     doc(db, "users", currentUser.uid),
     {
@@ -991,7 +1027,10 @@ console.log("Firebase module loaded");
       nameMode: profile.nameMode,
       bio: profile.bio || "",
       avatarUrl: avatarForCloud,
-      xp: state.xp
+      xp: state.xp,
+      focusCount,
+      focusMinutes,
+      streak: state.streak
     },
     { merge: true }
   );
@@ -1018,30 +1057,26 @@ function loadLeaderboard() {
   );
 
   onSnapshot(usersQuery, snapshot => {
-    console.log("Leaderboard snapshot received:", snapshot.size, "users");
+  const rows = [];
+  let rank = 1;
 
-    const rows = [];
-    let rank = 1;
+  snapshot.forEach(userDoc => {
+    const data = userDoc.data();
+    const isYou = userDoc.id === currentUser.uid;
 
-    snapshot.forEach(userDoc => {
-      const data = userDoc.data();
-      const isYou = userDoc.id === currentUser.uid;
+    rows.push(
+      `<div onclick="openProfile('${userDoc.id}')" style="cursor:pointer">
+        ${rank}. ${isYou ? "⭐ " : ""}${data.displayName || "Anonymous"} — ${data.xp || 0} XP
+      </div>`
+    );
 
-      console.log("User:", userDoc.id, data);
-
-      rows.push(
-        `${rank}. ${isYou ? "⭐ " : ""}${data.displayName || "Anonymous"} — ${data.xp || 0} XP`
-      );
-
-      rank++;
-    });
-
-    leaderboardElement.innerHTML =
-      rows.join("<br>") ||
-      "<div class='small'>No leaderboard entries yet.</div>";
-  }, error => {
-    console.error("Leaderboard Firestore error:", error);
+    rank++;
   });
+
+  leaderboardElement.innerHTML =
+    rows.join("<br>") ||
+    "<div class='small'>No leaderboard entries yet.</div>";
+});
 }
 
  onAuthStateChanged(auth, async user => {
@@ -1063,8 +1098,92 @@ function loadLeaderboard() {
   }
 });
 
+
+window.openProfile = async function (userId) {
+  const userDoc = await getDoc(doc(db, "users", userId));
+
+  if (!userDoc.exists()) {
+    alert("This profile is not available.");
+    return;
+  }
+
+  const data = userDoc.data();
+  const focusHours = ((data.focusMinutes || 0) / 60).toFixed(1);
+  const level = Math.floor((data.xp || 0) / 100) + 1;
+
+  document.getElementById("dialogAvatar").src =
+    data.avatarUrl || "logo.png";
+  document.getElementById("dialogName").textContent =
+    data.displayName || "Anonymous";
+  document.getElementById("dialogBio").textContent =
+    data.bio || "No bio yet.";
+  document.getElementById("dialogXp").textContent = data.xp || 0;
+  document.getElementById("dialogLevel").textContent = level;
+  document.getElementById("dialogFocusCount").textContent = data.focusCount || 0;
+  document.getElementById("dialogFocusHours").textContent = focusHours;
+
+  const achievements = [
+    { name: "First Flight", emoji: "🚀", earned: (data.focusCount || 0) >= 1 },
+    { name: "Focus Rookie", emoji: "🎯", earned: (data.focusCount || 0) >= 5 },
+    { name: "Deep Diver", emoji: "🌊", earned: (data.focusCount || 0) >= 10 },
+    { name: "One Hour Club", emoji: "⏰", earned: (data.focusMinutes || 0) >= 60 },
+    { name: "Five Hour Pilot", emoji: "🛫", earned: (data.focusMinutes || 0) >= 300 },
+    { name: "Streak Starter", emoji: "🔥", earned: (data.streak || 0) >= 3 },
+    { name: "Week Warrior", emoji: "📅", earned: (data.streak || 0) >= 7 }
+  ];
+
+  document.getElementById("dialogAchievements").innerHTML = achievements
+    .map(item => `<div class="task ${item.earned ? "" : "done"}">
+      <div><b>${item.emoji} ${item.name}</b></div>
+      <div class="small">${item.earned ? "Unlocked" : "Locked"}</div>
+    </div>`)
+    .join("");
+
+  document.getElementById("userProfileDialog").showModal();
+};
  
   
 </script>
+
+<dialog id="userProfileDialog">
+  <div class="card" style="margin:0">
+    <div style="text-align:center">
+      <img id="dialogAvatar" src="logo.png" alt="Profile picture"
+           style="width:80px;height:80px;border-radius:50%;object-fit:cover">
+      <h3 id="dialogName">Student</h3>
+      <div class="small" id="dialogBio">No bio yet.</div>
+    </div>
+
+    <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+
+    <div class="grid">
+      <div>
+        <div class="small">XP</div>
+        <div class="big" id="dialogXp">0</div>
+      </div>
+      <div>
+        <div class="small">Level</div>
+        <div class="big" id="dialogLevel">1</div>
+      </div>
+      <div>
+        <div class="small">Focus sessions</div>
+        <div class="big" id="dialogFocusCount">0</div>
+      </div>
+      <div>
+        <div class="small">Focus hours</div>
+        <div class="big" id="dialogFocusHours">0.0</div>
+      </div>
+    </div>
+
+    <h3 style="margin-top:16px">Achievements</h3>
+    <div id="dialogAchievements"></div>
+
+    <br>
+    <button class="secondary" onclick="document.getElementById('userProfileDialog').close()">
+      Close
+    </button>
+  </div>
+</dialog>
+
 </body>
 </html>
