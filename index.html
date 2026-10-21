@@ -319,7 +319,7 @@
 
 <section id="profile" class="page">
   <div class="card" style="text-align:center">
-    <img id="avatar" src="logo.png" alt="Profile avatar"
+    <img id="avatar" src="LogoBlacknotext.png" alt="Profile avatar"
          style="width:90px;height:90px;border-radius:50%;object-fit:cover">
     <h3 id="profileDisplayName" style="margin:10px 0 4px">Student</h3>
     <div class="small" id="profileBio">No bio yet.</div>
@@ -655,7 +655,10 @@ function renderProfile() {
   document.getElementById("profileFocusHours").textContent =
     (focusMinutes / 60).toFixed(1);
 
-  document.getElementById("bioInput").value = profile.bio || "";
+  const bioInput = document.getElementById("bioInput");
+    if (!bioInput.value) {
+      bioInput.value = profile.bio || "";
+}
   document.getElementById("avatarUrl").value = profile.avatarUrl || "";
 
   document.getElementById("profileHistory").innerHTML =
@@ -808,13 +811,15 @@ function render() {
   );
 
   document.getElementById("currentBlock").textContent =
-    currentBlock
-      ? `${currentBlock.label} — ${currentBlock.start} to ${currentBlock.end}`
-      : "No schedule block right now.";
+  currentBlock
+    ? `${currentBlock.label} — ${currentBlock.start} to ${currentBlock.end}`
+    : "No schedule block right now.";
 
+renderProfile();
+}
   
 
-}
+
 
 render();
 </script>
