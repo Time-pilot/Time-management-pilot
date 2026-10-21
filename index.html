@@ -170,24 +170,24 @@
     </div>
 
     <div class="card">
-      <h3>Now</h3>
+      <h3 id="nowTitle">Now</h3>
       <div id="currentBlock" class="small">No schedule block right now.</div>
     </div>
 
     <div class="card">
-      <h3>Leaderboard</h3>
+      <h3 id="leaderboardTitle">Leaderboard</h3>
       <div id="leaderboard" class="small"></div>
     </div>
 
     <div class="card">
-      <h3>Today’s tasks</h3>
+      <h3 id="todayTasksTitle">Today’s tasks</h3>
       <div id="todayTasks"></div>
     </div>
   </section>
 
   <section id="tasks" class="page">
     <div class="card">
-      <h3>Add task</h3>
+      <h3 id="addTaskTitle">Add task</h3>
       <input id="taskTitle" placeholder="Task name, e.g. Math homework">
       <br><br>
       <div class="row">
@@ -207,14 +207,14 @@
     </div>
 
     <div class="card">
-      <h3>All tasks</h3>
+      <h3 id="allTasksTitle">All tasks</h3>
       <div id="taskList"></div>
     </div>
   </section>
 
   <section id="schedule" class="page">
     <div class="card">
-      <h3>Quick add</h3>
+      <h3 id="quickAddTitle">Quick add</h3>
       <select id="scheduleDay">
         <option>Monday</option><option>Tuesday</option><option>Wednesday</option>
         <option>Thursday</option><option>Friday</option><option>Saturday</option><option>Sunday</option>
@@ -231,7 +231,7 @@
     </div>
 
     <div class="card">
-      <h3>Custom block</h3>
+      <h3 id="customBlockTitle">Custom block</h3>
       <div class="row">
         <input id="blockStart" type="time" class="grow">
         <input id="blockEnd" type="time" class="grow">
@@ -243,14 +243,14 @@
     </div>
 
     <div class="card">
-      <h3>Weekly schedule</h3>
+      <h3 id="weeklyScheduleTitle">Weekly schedule</h3>
       <div id="scheduleList"></div>
     </div>
   </section>
 
   <section id="focus" class="page">
     <div class="card">
-      <h3>Focus Mode</h3>
+      <h3 id="focusModeTitle">Focus Mode</h3>
       <p class="small">Pick one task. Stay on this page until the timer ends.</p>
       <select id="focusTask" onchange="updateFocusDuration()"></select>
       <br><br>
@@ -264,14 +264,14 @@
      </div>
 
     <div class="card">
-      <h3>Focus history</h3>
+      <h3 id="focusHistoryTitle">Focus history</h3>
       <div id="focusHistory"></div>
     </div>
   </section>
 
   <section id="more" class="page">
   <div class="card" id="authCard">
-     <h3>Account</h3>
+     <h3 id="accountTitle">Account</h3>
     <input id="authEmail" type="email" placeholder="Email">
      <br><br>
      <input id="authPassword" type="password" placeholder="Password">
@@ -285,7 +285,7 @@
   </div>
 
   <div class="card" id="profileCard" style="display:none">
-    <h3>Profile</h3>
+    <h3 id="profileTitle">Profile</h3>
     <input id="nickname" placeholder="Nickname">
     <br><br>
     <select id="nameMode">
@@ -303,12 +303,20 @@
   </div>
 
   <div class="card">
-    <h3>Appearance</h3>
+    <h3 id="languageTitle">Language</h3>
+    <select id="languageSelect" onchange="setLanguage(this.value)">
+      <option value="en">English</option>
+      <option value="id">Indonesia</option>
+    </select>
+  </div>
+
+  <div class="card">
+    <h3 id="appearanceTitle">Appearance</h3>
     <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
   </div>
 
   <div class="card">
-    <h3>Privacy</h3>
+    <h3 id="privacyTitle">Privacy</h3>
     <p class="small">
       TimePilot currently saves your tasks, schedule, XP, and focus history only in
       this browser. Do not enter sensitive personal information. You can use a
@@ -326,7 +334,7 @@
   </div>
 
   <div class="card">
-    <h3>Stats</h3>
+    <h3 id="statsTitle">Stats</h3>
     <div class="grid">
       <div>
         <div class="small">XP</div>
@@ -348,7 +356,7 @@
   </div>
 
   <div class="card">
-    <h3>Edit profile</h3>
+    <h3 id="editProfileTitle">Edit profile</h3>
     <input id="bioInput" placeholder="Write a short bio">
     <br><br>
     <input id="avatarUrl" placeholder="Paste avatar image URL">
@@ -364,12 +372,12 @@
   </div>
 
   <div class="card">
-    <h3>Achievements</h3>
+    <h3 id="achievementsTitle">Achievements</h3>
     <div id="achievements"></div>
   </div>
 
   <div class="card">
-    <h3>Recent focus sessions</h3>
+    <h3 id="recentFocusTitle">Recent focus sessions</h3>
     <div id="profileHistory"></div>
   </div>
 </section>
@@ -384,16 +392,81 @@
 </div>
 
 <nav>
-  <button data-page="today" class="active" onclick="showPage('today')">Today</button>
-  <button data-page="tasks" onclick="showPage('tasks')">Tasks</button>
-  <button data-page="schedule" onclick="showPage('schedule')">Schedule</button>
-  <button data-page="focus" onclick="showPage('focus')">Focus</button>
-  <button data-page="profile" onclick="showPage('profile')">Profile</button>
-  <button data-page="more" onclick="showPage('more')">More</button>
+  <button data-page="today" class="active" onclick="showPage('today')" id="navToday">Today</button>
+  <button data-page="tasks" onclick="showPage('tasks')" id="navTasks">Tasks</button>
+  <button data-page="schedule" onclick="showPage('schedule')" id="navSchedule">Schedule</button>
+  <button data-page="focus" onclick="showPage('focus')" id="navFocus">Focus</button>
+  <button data-page="profile" onclick="showPage('profile')" id="navProfile">Profile</button>
+  <button data-page="more" onclick="showPage('more')" id="navMore">More</button>
 </nav>
 
 <script>
 const STORAGE_KEY = "timewise";
+
+const translations = {
+  en: {
+    today: "Today",
+    tasks: "Tasks",
+    schedule: "Schedule",
+    focus: "Focus",
+    profile: "Profile",
+    more: "More",
+    leaderboard: "Leaderboard",
+    now: "Now",
+    todaysTasks: "Today’s tasks",
+    totalFocus: "Total focus time",
+    xp: "XP",
+    streak: "Streak",
+    addTask: "Add task",
+    allTasks: "All tasks",
+    quickAdd: "Quick add",
+    customBlock: "Custom block",
+    weeklySchedule: "Weekly schedule",
+    focusMode: "Focus Mode",
+    focusHistory: "Focus history",
+    account: "Account",
+    profileTitle: "Profile",
+    stats: "Stats",
+    achievements: "Achievements",
+    recentFocus: "Recent focus sessions",
+    editProfile: "Edit profile",
+    appearance: "Appearance",
+    language: "Language",
+    privacy: "Privacy"
+  },
+  id: {
+    today: "Hari Ini",
+    tasks: "Tugas",
+    schedule: "Jadwal",
+    focus: "Fokus",
+    profile: "Profil",
+    more: "Lainnya",
+    leaderboard: "Papan Peringkat",
+    now: "Sekarang",
+    todaysTasks: "Tugas Hari Ini",
+    totalFocus: "Total Waktu Fokus",
+    xp: "XP",
+    streak: "Runtutan",
+    addTask: "Tambah Tugas",
+    allTasks: "Semua Tugas",
+    quickAdd: "Tambah Cepat",
+    customBlock: "Blok Kustom",
+    weeklySchedule: "Jadwal Mingguan",
+    focusMode: "Mode Fokus",
+    focusHistory: "Riwayat Fokus",
+    account: "Akun",
+    profileTitle: "Profil",
+    stats: "Statistik",
+    achievements: "Pencapaian",
+    recentFocus: "Sesi Fokus Terbaru",
+    editProfile: "Edit Profil",
+    appearance: "Tampilan",
+    language: "Bahasa",
+    privacy: "Privasi"
+  }
+};
+
+let currentLanguage = localStorage.getItem("timepilot-language") || "en";
 
 const defaultState = {
   xp: 0,
@@ -463,6 +536,46 @@ function addTask() {
   save();
 }
 //i want sum food bc im hungry as hell bro
+
+function setLanguage(language) {
+  currentLanguage = language;
+  localStorage.setItem("timepilot-language", language);
+  document.documentElement.lang = language;
+  applyLanguage();
+}
+
+function applyLanguage() {
+  const text = translations[currentLanguage];
+
+  document.getElementById("navToday").textContent = text.today;
+  document.getElementById("navTasks").textContent = text.tasks;
+  document.getElementById("navSchedule").textContent = text.schedule;
+  document.getElementById("navFocus").textContent = text.focus;
+  document.getElementById("navProfile").textContent = text.profile;
+  document.getElementById("navMore").textContent = text.more;
+
+  document.getElementById("nowTitle").textContent = text.now;
+  document.getElementById("leaderboardTitle").textContent = text.leaderboard;
+  document.getElementById("todayTasksTitle").textContent = text.todaysTasks;
+  document.getElementById("addTaskTitle").textContent = text.addTask;
+  document.getElementById("allTasksTitle").textContent = text.allTasks;
+  document.getElementById("quickAddTitle").textContent = text.quickAdd;
+  document.getElementById("customBlockTitle").textContent = text.customBlock;
+  document.getElementById("weeklyScheduleTitle").textContent = text.weeklySchedule;
+  document.getElementById("focusModeTitle").textContent = text.focusMode;
+  document.getElementById("focusHistoryTitle").textContent = text.focusHistory;
+  document.getElementById("accountTitle").textContent = text.account;
+  document.getElementById("profileTitle").textContent = text.profileTitle;
+  document.getElementById("statsTitle").textContent = text.stats;
+  document.getElementById("achievementsTitle").textContent = text.achievements;
+  document.getElementById("recentFocusTitle").textContent = text.recentFocus;
+  document.getElementById("editProfileTitle").textContent = text.editProfile;
+  document.getElementById("appearanceTitle").textContent = text.appearance;
+  document.getElementById("languageTitle").textContent = text.language;
+  document.getElementById("privacyTitle").textContent = text.privacy;
+
+  document.getElementById("languageSelect").value = currentLanguage;
+}
 
 function completeTask(id) {
   const task = state.tasks.find(t => t.id === id);
@@ -797,9 +910,13 @@ function previewAvatar(event) {
 
 function render() {
   const today = new Date();
+
   document.getElementById("dateText").textContent =
     today.toLocaleDateString("en-US", {
-      weekday: "long", day: "numeric", month: "long", year: "numeric"
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      year: "numeric"
     });
 
   document.getElementById("xpDisplay").textContent = state.xp;
@@ -877,13 +994,13 @@ function render() {
     ? `${currentBlock.label} — ${currentBlock.start} to ${currentBlock.end}`
     : "No schedule block right now.";
 
-renderProfile();
+  renderProfile();
 }
-  
 
-
-
+document.documentElement.lang = currentLanguage;
+applyLanguage();
 render();
+</script>
 </script>
 
 <script type="module">
@@ -1141,7 +1258,7 @@ window.openProfile = async function (userId) {
 
   document.getElementById("userProfileDialog").showModal();
 };
- 
+
   
 </script>
 
@@ -1186,4 +1303,4 @@ window.openProfile = async function (userId) {
 </dialog>
 
 </body>
-</html>
+</html>   
