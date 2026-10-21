@@ -353,6 +353,13 @@
     <br><br>
     <input id="avatarUrl" placeholder="Paste avatar image URL">
     <br><br>
+    <label style="display:block">
+      <input id="avatarFile" type="file" accept="image/*" onchange="previewAvatar(event)" style="display:none">
+      <button type="button" onclick="document.getElementById('avatarFile').click()">
+      Choose profile picture
+      </button>
+    </label>
+    <br><br>
     <button onclick="saveProfile()">Save profile</button>
   </div>
 
@@ -740,6 +747,31 @@ function quickBlock(label, start, end) {
   save();
 }
 
+function previewAvatar(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    alert("Please choose an image file.");
+    return;
+  }
+  
+  if (file.size > 500 * 1024) {
+  alert("Please choose an image smaller than 500 KB.");
+  return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = function (e) {
+    state.profile.avatarUrl = e.target.result;
+    document.getElementById("avatar").src = e.target.result;
+    save();
+  };
+
+  reader.readAsDataURL(file);
+}
+
 function render() {
   const today = new Date();
   document.getElementById("dateText").textContent =
@@ -938,26 +970,32 @@ console.log("Firebase module loaded");
   }
 
   window.saveLeaderboardProfile = async function () {
-    if (!currentUser) return;
+  if (!currentUser) return;
 
-    const profile = state.profile;
-    const displayName =
-      profile.nameMode === "anon" ? "Anonymous" :
-      profile.nameMode === "real" ? (profile.realName || "Student") :
-      (profile.nickname || "Student");
+  const profile = state.profile;
 
-    await setDoc(
-      doc(db, "users", currentUser.uid),
-      {
-        displayName,
-        nameMode: profile.nameMode,
-        bio: profile.bio || "",
-        avatarUrl: profile.avatarUrl || "",
-        xp: state.xp
-      },
-      { merge: true }
-    );
-  };
+  const displayName =
+    profile.nameMode === "anon" ? "Anonymous" :
+    profile.nameMode === "real" ? (profile.realName || "Student") :
+    (profile.nickname || "Student");
+
+  const avatarForCloud =
+    profile.avatarUrl && profile.avatarUrl.startsWith("http")
+      ? profile.avatarUrl
+      : "";
+
+  await setDoc(
+    doc(db, "users", currentUser.uid),
+    {
+      displayName,
+      nameMode: profile.nameMode,
+      bio: profile.bio || "",
+      avatarUrl: avatarForCloud,
+      xp: state.xp
+    },
+    { merge: true }
+  );
+};
 
 function loadLeaderboard() {
   console.log("Leaderboard loading. Signed in:", currentUser);
