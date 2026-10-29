@@ -167,6 +167,9 @@
       <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
       <div class="small">Total focus time</div>
       <div class="big" id="focusTotal">0 min</div>
+      <hr style="border:0;border-top:1px solid var(--border);margin:14px 0">
+      <div class="small">TimeCoins</div>
+      <div class="big" id="todayCoinDisplay">0</div>
     </div>
 
     <div class="card">
@@ -325,6 +328,29 @@
   </div>
 </section>
 
+<section id="shop" class="page">
+  <div class="card">
+    <h3>TimeCoins</h3>
+    <div class="big" id="coinDisplay">0</div>
+    <div class="small">Earn TimeCoins by completing Focus Mode sessions and leveling up.</div>
+  </div>
+
+  <div class="card">
+    <h3>Backgrounds</h3>
+    <div id="backgroundShop"></div>
+  </div>
+
+  <div class="card">
+    <h3>Fonts</h3>
+    <div id="fontShop"></div>
+  </div>
+
+  <div class="card">
+    <h3>Focus decorations</h3>
+    <div id="focusShop"></div>
+  </div>
+</section>
+
 <section id="profile" class="page">
   <div class="card" style="text-align:center">
     <img id="avatar" src="LogoBlacknotext.png" alt="Profile avatar"
@@ -396,6 +422,7 @@
   <button data-page="tasks" onclick="showPage('tasks')" id="navTasks">Tasks</button>
   <button data-page="schedule" onclick="showPage('schedule')" id="navSchedule">Schedule</button>
   <button data-page="focus" onclick="showPage('focus')" id="navFocus">Focus</button>
+  <button data-page="shop" onclick="showPage('shop')" id="navShop">Shop</button>
   <button data-page="profile" onclick="showPage('profile')" id="navProfile">Profile</button>
   <button data-page="more" onclick="showPage('more')" id="navMore">More</button>
 </nav>
@@ -468,20 +495,47 @@ const translations = {
 
 let currentLanguage = localStorage.getItem("timepilot-language") || "en";
 
+const skins = {
+  backgrounds: [
+    { id: "default", name: "Classic Blue", price: 0, css: "" },
+    { id: "sunset", name: "Sunset", price: 50, css: "linear-gradient(180deg, #ffd6a5, #ffadad)" },
+    { id: "ocean", name: "Ocean", price: 75, css: "linear-gradient(180deg, #a1c4fd, #c2e9fb)" },
+    { id: "forest", name: "Forest", price: 100, css: "linear-gradient(180deg, #d4fc79, #96e6a1)" },
+    { id: "night", name: "Midnight", price: 150, css: "linear-gradient(180deg, #232526, #414345)" }
+  ],
+  fonts: [
+    { id: "default", name: "System", price: 0, css: "system-ui, -apple-system, sans-serif" },
+    { id: "serif", name: "Elegant Serif", price: 40, css: "Georgia, 'Times New Roman', serif" },
+    { id: "mono", name: "Coder Mono", price: 60, css: "Consolas, 'Courier New', monospace" },
+    { id: "rounded", name: "Rounded", price: 80, css: "'Trebuchet MS', 'Segoe UI', sans-serif" }
+  ],
+  focus: [
+    { id: "default", name: "Clean Black", price: 0, css: "#000000" },
+    { id: "galaxy", name: "Galaxy", price: 80, css: "radial-gradient(circle at top, #3b1f6e, #000000)" },
+    { id: "sunset", name: "Sunset Focus", price: 100, css: "linear-gradient(180deg, #ff9a9e, #fad0c4)" },
+    { id: "matrix", name: "Matrix", price: 120, css: "radial-gradient(circle at center, #003b00, #000000)" }
+  ]
+};
+
 const defaultState = {
   xp: 0,
+  coins: 0,
   streak: 0,
   lastActiveDay: "",
   tasks: [],
   schedule: [],
   focusSessions: [],
+  ownedSkins: ["default"],
+  activeBackground: "default",
+  activeFont: "default",
+  activeFocusTheme: "default",
   profile: {
-  nickname: "",
-  nameMode: "nickname",
-  realName: "",
-  bio: "",
-  avatarUrl: ""
-}
+    nickname: "",
+    nameMode: "nickname",
+    realName: "",
+    bio: "",
+    avatarUrl: ""
+  }
 };
 
 let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || defaultState;
@@ -489,6 +543,11 @@ let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null") || defaultSt
 // Fix old saved data that is missing newer fields
 state.xp ??= 0;
 state.streak ??= 0;
+state.coins ??= 0;
+state.ownedSkins ??= ["default"];
+state.activeBackground ??= "default";
+state.activeFont ??= "default";
+state.activeFocusTheme ??= "default";
 state.lastActiveDay ??= "";
 state.tasks ??= [];
 state.schedule ??= [];
@@ -701,8 +760,10 @@ function updateTimerText(remaining) {
 
 function finishFocus(task, minutes) {
   const xpEarned = Math.max(5, Math.round(minutes / 5) * 5);
+  const coinsEarned = Math.max(1, Math.round(minutes / 5));
 
   state.xp += xpEarned;
+  state.coins += coinsEarned;
   state.lastFocusXp = xpEarned;
 
   state.focusSessions.push({
@@ -710,6 +771,7 @@ function finishFocus(task, minutes) {
     taskTitle: task ? task.title : "Focus session",
     minutes,
     xpEarned,
+    coinsEarned,
     completedAt: new Date().toISOString()
   });
 
@@ -718,6 +780,8 @@ function finishFocus(task, minutes) {
   updateStreak();
   save();
   showBreak(5);
+
+  alert(`Focus complete! +${xpEarned} XP and +${coinsEarned} TimeCoins.`);
 }
 //KoRn 4 LIFEEE
 
@@ -753,6 +817,105 @@ function confirmExit() {
 
   clearInterval(window.focusInterval);
   document.getElementById("focusOverlay").classList.remove("active");
+}
+
+function ownsSkin(id) {
+  return state.ownedSkins.includes(id);
+}
+
+function buySkin(type, id) {
+  const item = skins[type].find(skin => skin.id === id);
+  if (!item) return;
+
+  if (ownsSkin(id)) {
+    equipSkin(type, id);
+    return;
+  }
+
+  if (state.coins < item.price) {
+    alert("Not enough TimeCoins.");
+    return;
+  }
+
+  state.coins -= item.price;
+  state.ownedSkins.push(id);
+  equipSkin(type, id);
+  alert(`You bought ${item.name}!`);
+}
+
+function equipSkin(type, id) {
+  if (!ownsSkin(id)) return;
+
+  if (type === "backgrounds") state.activeBackground = id;
+  if (type === "fonts") state.activeFont = id;
+  if (type === "focus") state.activeFocusTheme = id;
+
+  save();
+  applySkins();
+}
+
+function applySkins() {
+  const background = skins.backgrounds.find(
+    item => item.id === state.activeBackground
+  );
+
+  const font = skins.fonts.find(
+    item => item.id === state.activeFont
+  );
+
+  const focusTheme = skins.focus.find(
+    item => item.id === state.activeFocusTheme
+  );
+
+  document.body.style.background =
+    background && background.css ? background.css : "";
+
+  document.body.style.fontFamily =
+    font && font.css ? font.css : "";
+
+  const overlay = document.getElementById("focusOverlay");
+  overlay.style.background =
+    focusTheme && focusTheme.css ? focusTheme.css : "#000000";
+
+  document.getElementById("coinDisplay").textContent = state.coins;
+}
+
+function renderShop() {
+  const types = ["backgrounds", "fonts", "focus"];
+
+  types.forEach(type => {
+    const container = document.getElementById(`${type}Shop`);
+
+    container.innerHTML = skins[type].map(item => {
+      const owned = ownsSkin(item.id);
+      const active =
+        (type === "backgrounds" && state.activeBackground === item.id) ||
+        (type === "fonts" && state.activeFont === item.id) ||
+        (type === "focus" && state.activeFocusTheme === item.id);
+
+      const buttonText = active
+        ? "Using"
+        : owned
+        ? "Use"
+        : `${item.price} coins`;
+
+      return `<div class="task">
+        <div>
+          <b>${item.name}</b><br>
+          <span class="small">${owned ? "Owned" : `${item.price} TimeCoins`}</span>
+        </div>
+        <button
+          class="${active ? "secondary" : ""}"
+          onclick="buySkin('${type}', '${item.id}')"
+          ${active ? "disabled" : ""}
+        >
+          ${buttonText}
+        </button>
+      </div>`;
+    }).join("");
+  });
+
+  document.getElementById("coinDisplay").textContent = state.coins;
 }
 
 function toggleDark() {
@@ -811,8 +974,8 @@ function renderProfile() {
       .slice(0, 5)
       .map(session => `<div class="task">
         <div><b>${session.taskTitle}</b><br>
-        <span class="small">${session.minutes} min • +${session.xpEarned || 0} XP</span></div>
-      </div>`)
+        <span class="small">${session.minutes} min • +${session.coinsEarned || 0} TimeCoins • +${session.xpEarned || 0} XP</span>
+        </div>`)
       .join("") ||
     "<div class='small'>No focus sessions yet.</div>";
 
@@ -928,6 +1091,7 @@ function render() {
     (total, session) => total + session.minutes, 0
   );
   document.getElementById("focusTotal").textContent = totalFocusMinutes + " min";
+  document.getElementById("todayCoinDisplay").textContent = state.coins;
 
   const todayDate = today.toLocaleDateString("en-CA");
   const todayTasks = state.tasks.filter(task => !task.due || task.due === todayDate);
@@ -968,16 +1132,16 @@ function render() {
   updateFocusDuration();
 
   document.getElementById("focusHistory").innerHTML =
-    state.focusSessions
-      .slice()
-      .reverse()
-      .slice(0, 10)
-      .map(session => `<div class="task">
-        <div><b>${session.taskTitle}</b><br>
-        <span class="small">${session.minutes} min • ${new Date(session.completedAt).toLocaleString()}</span></div>
-      </div>`)
-      .join("") ||
-    "<div class='small'>No focus sessions yet.</div>";
+  state.focusSessions
+    .slice()
+    .reverse()
+    .slice(0, 10)
+    .map(session => `<div class="task">
+      <div><b>${session.taskTitle}</b><br>
+      <span class="small">${session.minutes} min • +${session.coinsEarned || 0} TimeCoins • ${new Date(session.completedAt).toLocaleString()}</span></div>
+    </div>`)
+    .join("") ||
+  "<div class='small'>No focus sessions yet.</div>";
 
   document.getElementById("nickname").value = state.profile.nickname;
   document.getElementById("nameMode").value = state.profile.nameMode;
@@ -995,12 +1159,13 @@ function render() {
     : "No schedule block right now.";
 
   renderProfile();
+  renderShop();
+  applySkins();
 }
 
 document.documentElement.lang = currentLanguage;
 applyLanguage();
 render();
-</script>
 </script>
 
 <script type="module">
