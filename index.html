@@ -321,7 +321,6 @@
     </select>
   </div>
 
-  <button onclick="showFcmToken()">Get test notification token</button>
 
   <div class="card">
     <h3 id="appearanceTitle">Appearance</h3>
@@ -1173,9 +1172,73 @@ function render() {
   applySkins();
 }
 
+let remindedTaskIds = [];
+let remindedBlockKeys = [];
+
+function enableReminders() {
+  if (!("Notification" in window)) {
+    alert("Your browser does not support notifications.");
+    return;
+  }
+
+  Notification.requestPermission().then(permission => {
+    if (permission === "granted") {
+      alert("Reminders enabled!");
+      checkReminders();
+    } else {
+      alert("Notifications are blocked.");
+    }
+  });
+}
+
+function checkReminders() {
+  if (Notification.permission !== "granted") return;
+
+  const now = new Date();
+  const soon = new Date(now.getTime() + 30 * 60 * 1000);
+
+  state.tasks.forEach(task => {
+    if (!task.due || task.done) return;
+    if (remindedTaskIds.includes(task.id)) return;
+
+    const dueDate = new Date(`${task.due}T23:59`);
+
+    if (dueDate >= now && dueDate <= soon) {
+      remindedTaskIds.push(task.id);
+
+      new Notification("Task due soon", {
+        body: `${task.title} is due today.`
+      });
+    }
+  });
+
+  const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
+  const currentTime = now.toTimeString().slice(0, 5);
+  const soonTime = soon.toTimeString().slice(0, 5);
+
+  state.schedule.forEach(block => {
+    if (block.day !== dayName) return;
+
+    const key = `${block.day}-${block.start}-${block.end}-${block.label}`;
+
+    if (remindedBlockKeys.includes(key)) return;
+
+    if (block.start >= currentTime && block.start <= soonTime) {
+      remindedBlockKeys.push(key);
+
+      new Notification("Schedule starting soon", {
+        body: `${block.label} starts at ${block.start}.`
+      });
+    }
+  });
+}
+
+setInterval(checkReminders, 30000);
+
 document.documentElement.lang = currentLanguage;
 applyLanguage();
 render();
+checkReminders();
 </script>
 
 <script type="module">
