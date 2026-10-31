@@ -306,12 +306,22 @@
   </div>
 
   <div class="card">
+    <h3>Reminders</h3>
+    <p class="small">
+      Get notified before task deadlines, even when TimePilot is closed.
+    </p>
+    <button onclick="enableReminders()">Enable reminders</button>
+  </div>
+
+  <div class="card">
     <h3 id="languageTitle">Language</h3>
     <select id="languageSelect" onchange="setLanguage(this.value)">
       <option value="en">English</option>
       <option value="id">Indonesia</option>
     </select>
   </div>
+
+  <button onclick="showFcmToken()">Get test notification token</button>
 
   <div class="card">
     <h3 id="appearanceTitle">Appearance</h3>
@@ -1192,6 +1202,40 @@ import {
   deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
+import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
+
+const messaging = getMessaging(app);
+
+window.enableReminders = async function () {
+  if (!currentUser) {
+    alert("Sign in first so reminders can follow your account.");
+    return;
+  }
+
+  const permission = await Notification.requestPermission();
+
+  if (permission !== "granted") {
+    alert("Please allow notifications to enable reminders.");
+    return;
+  }
+
+  try {
+    const token = await getToken(messaging, {
+      vapidKey: "BCul-NDDG88Vu9M7KQuF7Mnz-0hmivqNZsUrLWyDzkMpmNkbpMYdzYUbc0_jbfZwrrmAAljKt310Ntc5Oz74TBY"
+    });
+
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { fcmToken: token },
+      { merge: true }
+    );
+
+    alert("Deadline reminders enabled!");
+  } catch (error) {
+    alert(error.message);
+  }
+};
+
 console.log("Firebase module loaded");
 
 
@@ -1318,6 +1362,22 @@ console.log("Firebase module loaded");
   );
 };
 
+window.showFcmToken = async function () {
+  const permission = await Notification.requestPermission();
+
+  if (permission !== "granted") {
+    alert("Please allow notifications first.");
+    return;
+  }
+
+  const token = await getToken(messaging, {
+    vapidKey: "BCul-NDDG88Vu9M7KQuF7Mnz-0hmivqNZsUrLWyDzkMpmNkbpMYdzYUbc0_jbfZwrrmAAljKt310Ntc5Oz74TBY"
+  });
+
+  console.log("FCM TOKEN:", token);
+  alert("Token is in Console. Press F12 and copy it.");
+};
+
 function loadLeaderboard() {
   console.log("Leaderboard loading. Signed in:", currentUser);
 
@@ -1379,6 +1439,8 @@ function loadLeaderboard() {
     loadLeaderboard();
   }
 });
+
+
 
 
 window.openProfile = async function (userId) {
