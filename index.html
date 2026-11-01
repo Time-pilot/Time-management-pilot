@@ -205,6 +205,7 @@
       </div>
       <br>
       <input id="taskDue" type="date">
+      <input id="taskDueTime" type="time">
       <br><br>
       <button onclick="addTask()">Add task</button>
     </div>
@@ -594,17 +595,25 @@ function addTask() {
   const title = document.getElementById("taskTitle").value.trim();
   if (!title) return alert("Please enter a task name.");
 
+  const dueDate = document.getElementById("taskDue").value;
+  const dueTime = document.getElementById("taskDueTime").value || "23:59";
+  const dueAt = dueDate ? new Date(`${dueDate}T${dueTime}`) : null;
+
   state.tasks.push({
     id: Date.now(),
     title,
     category: document.getElementById("taskCategory").value,
     minutes: Number(document.getElementById("taskMinutes").value || 25),
     due: document.getElementById("taskDue").value,
+    dueAt: dueAt ? dueAt.toISOString() : null,
     done: false
   });
 
   document.getElementById("taskTitle").value = "";
   document.getElementById("taskMinutes").value = "";
+  document.getElementById("taskDue").value = "";
+  document.getElementById("taskDueTime").value = "";
+  
   save();
 }
 //i want sum food bc im hungry as hell bro
@@ -1182,26 +1191,32 @@ let remindedBlockKeys = [];
 
 
 function checkReminders() {
+  if (!("Notification" in window)) return;
   if (Notification.permission !== "granted") return;
 
   const now = new Date();
   const soon = new Date(now.getTime() + 30 * 60 * 1000);
 
+  // Task reminders
   state.tasks.forEach(task => {
-    if (!task.due || task.done) return;
+    if (!task.dueAt || task.done) return;
     if (remindedTaskIds.includes(task.id)) return;
 
-    const dueDate = new Date(`${task.due}T23:59`);
+    const dueAt = new Date(task.dueAt);
 
-    if (dueDate >= now && dueDate <= soon) {
+    if (dueAt >= now && dueAt <= soon) {
       remindedTaskIds.push(task.id);
 
       new Notification("Task due soon", {
-        body: `${task.title} is due today.`
+        body: `${task.title} is due at ${dueAt.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit"
+        })}.`
       });
     }
   });
 
+  // Schedule reminders
   const dayName = now.toLocaleDateString("en-US", { weekday: "long" });
   const currentTime = now.toTimeString().slice(0, 5);
   const soonTime = soon.toTimeString().slice(0, 5);
@@ -1224,6 +1239,8 @@ function checkReminders() {
 }
 
 setInterval(checkReminders, 30000);
+
+
 
 document.documentElement.lang = currentLanguage;
 applyLanguage();
