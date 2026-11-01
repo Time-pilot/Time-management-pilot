@@ -310,7 +310,11 @@
     <p class="small">
       Get notified before task deadlines, even when TimePilot is closed.
     </p>
-    <button onclick="enableReminders()">Enable reminders</button>
+    <div class="row">
+      <button onclick="enableReminders()">Enable reminders</button>
+      <button class="danger" onclick="disableReminders()">Disable reminders</button>
+      <div class="small" id="reminderStatus">Checking reminders…</div>
+    </div>
   </div>
 
   <div class="card">
@@ -1251,7 +1255,11 @@ import {
   deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-firestore.js";
 
-import { getMessaging, getToken } from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
+import { 
+  getMessaging, 
+  getToken,
+  deleteToken
+} from "https://www.gstatic.com/firebasejs/12.6.0/firebase-messaging.js";
 
 window.enableReminders = async function () {
   if (!currentUser) {
@@ -1278,6 +1286,7 @@ window.enableReminders = async function () {
     );
 
     alert("Deadline reminders enabled!");
+    updateReminderStatus();
   } catch (error) {
     alert(error.message);
   }
@@ -1480,9 +1489,63 @@ window.enableReminders = async function () {
     );
 
     alert("Deadline reminders enabled!");
+    updateReminderStatus();
   } catch (error) {
     console.error("Reminder error:", error);
     alert("Reminder error: " + error.message);
+  }
+};
+
+window.disableReminders = async function () {
+  try {
+    if (!currentUser) {
+      alert("Sign in first to manage reminders.");
+      return;
+    }
+
+    const registration = await getMessagingRegistration();
+
+    const subscription = await registration.pushManager.getSubscription();
+
+    if (subscription) {
+      await subscription.unsubscribe();
+    }
+
+    await deleteToken(messaging);
+
+    await setDoc(
+      doc(db, "users", currentUser.uid),
+      { fcmToken: "" },
+      { merge: true }
+    );
+
+    alert("Deadline reminders disabled.");
+  } catch (error) {
+    console.error("Disable reminder error:", error);
+    alert("Could not disable reminders: " + error.message);
+  }
+};
+
+window.updateReminderStatus = async function () {
+  const status = document.getElementById("reminderStatus");
+
+  if (!status) return;
+
+  if (!currentUser) {
+    status.textContent = "Sign in to manage reminders.";
+    return;
+  }
+
+  try {
+    const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+    const token = userDoc.data()?.fcmToken;
+
+    status.textContent = token
+      ? "Deadline reminders are enabled."
+      : "Deadline reminders are disabled.";
+  } catch (error) {
+    console.error("Could not load reminder status:", error);
+    status.textContent = "Could not load reminder status.";
   }
 };
 
@@ -1546,6 +1609,11 @@ function loadLeaderboard() {
     profileCard.style.display = "none";
     loadLeaderboard();
   }
+
+   if (window.updateReminderStatus) {
+    updateReminderStatus();
+  }
+
 });
 
 
