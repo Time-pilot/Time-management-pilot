@@ -328,6 +328,12 @@
 
 
   <div class="card">
+    <h3>Help</h3>
+    <button class="secondary" onclick="showTutorial()">View tutorial</button>
+  </div>
+
+
+  <div class="card">
     <h3 id="appearanceTitle">Appearance</h3>
     <button class="secondary" onclick="toggleDark()">Toggle dark mode</button>
   </div>
@@ -1240,12 +1246,59 @@ function checkReminders() {
 
 setInterval(checkReminders, 30000);
 
+let tutorialStep = 1;
 
+function showTutorial() {
+  tutorialStep = 1;
+  updateTutorialSlide();
+  document.getElementById("tutorialDialog").showModal();
+}
+
+function updateTutorialSlide() {
+  document.getElementById("tutorialSlide1").style.display =
+    tutorialStep === 1 ? "block" : "none";
+
+  document.getElementById("tutorialSlide2").style.display =
+    tutorialStep === 2 ? "block" : "none";
+
+  document.getElementById("tutorialSlide3").style.display =
+    tutorialStep === 3 ? "block" : "none";
+
+  document.getElementById("tutorialProgress").textContent =
+    `Step ${tutorialStep} of 3`;
+
+  document.getElementById("tutorialNextButton").textContent =
+    tutorialStep === 3 ? "Get started" : "Next";
+}
+
+function nextTutorialSlide() {
+  if (tutorialStep < 3) {
+    tutorialStep++;
+    updateTutorialSlide();
+  } else {
+    closeTutorial();
+  }
+}
+
+function closeTutorial() {
+  document.getElementById("tutorialDialog").close();
+  localStorage.setItem("timepilot-tutorial-seen", "true");
+}
+
+function shouldShowTutorial() {
+  return !localStorage.getItem("timepilot-tutorial-seen");
+}
+
+// This is where the final render call is.
 
 document.documentElement.lang = currentLanguage;
 applyLanguage();
 render();
 checkReminders();
+
+if (shouldShowTutorial()) {
+  showTutorial();
+}
 </script>
 
 <script type="module">
@@ -1719,6 +1772,44 @@ window.openProfile = async function (userId) {
     <button class="secondary" onclick="document.getElementById('userProfileDialog').close()">
       Close
     </button>
+  </div>
+</dialog>
+
+<dialog id="tutorialDialog">
+  <div class="card" style="margin:0">
+    <div id="tutorialSlide1">
+      <h3>Welcome to TimePilot</h3>
+      <p class="small">
+        Plan your day, stay focused, and earn rewards for completing tasks.
+      </p>
+    </div>
+
+    <div id="tutorialSlide2" style="display:none">
+      <h3>How it works</h3>
+      <p class="small">
+        1. Add tasks in the Tasks tab.<br>
+        2. Build your weekly schedule.<br>
+        3. Start a Focus session.<br>
+        4. Earn XP and TimeCoins.
+      </p>
+    </div>
+
+    <div id="tutorialSlide3" style="display:none">
+      <h3>Make it yours</h3>
+      <p class="small">
+        Visit the Shop to unlock backgrounds, fonts, and Focus Mode themes
+        using TimeCoins.
+      </p>
+    </div>
+
+    <div class="small" id="tutorialProgress" style="margin:10px 0">
+      Step 1 of 3
+    </div>
+
+    <div class="row">
+      <button class="secondary" onclick="closeTutorial()">Skip</button>
+      <button id="tutorialNextButton" onclick="nextTutorialSlide()">Next</button>
+    </div>
   </div>
 </dialog>
 
